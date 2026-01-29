@@ -35,9 +35,19 @@ function containsLoose(a, b) {
   return A.includes(B) || B.includes(A);
 }
 
+function mimeForPath(p) {
+  const ext = path.extname(p).toLowerCase();
+  if (ext === ".jpg" || ext === ".jpeg") return "image/jpeg";
+  if (ext === ".png") return "image/png";
+  if (ext === ".gif") return "image/gif";
+  if (ext === ".webp") return "image/webp";
+  return "application/octet-stream";
+}
+
 async function callVision({ imagePath, hint = "" }) {
   const buf = fs.readFileSync(imagePath);
-  const file = new File([buf], path.basename(imagePath), { type: "image/jpeg" });
+  const mime = mimeForPath(imagePath);
+  const file = new File([buf], path.basename(imagePath), { type: mime });
   const form = new FormData();
   form.append("image", file);
   form.append("text", hint);
@@ -121,7 +131,19 @@ async function main() {
     const image = r.image;
     const expected = r.expected || {};
 
-    const out = await callVision({ imagePath: image, hint: r.hint || "" });
+    let out;
+    try {
+      out = await callVision({ imagePath: image, hint: r.hint || "" });
+    } catch (e) {
+      details.push({
+        id: r.id,
+        image,
+        expected,
+        error: String(e?.message || e),
+      });
+      process.stdout.write("E");
+      continue;
+    }
 
     const expBrand = expected.brand ?? null;
     const expCat = expected.category ?? null;
