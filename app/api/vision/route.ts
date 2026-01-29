@@ -119,8 +119,12 @@ Schema:
 }
 
 Rules:
-- Do NOT hallucinate brand or model.
-- If brand not clearly visible: brand=null and confidence="low".
+- Prefer NOT to hallucinate brand or model.
+- If the brand name/logo text is clearly visible, set brand.
+- If the brand is not text-visible but the item has a very distinctive, widely-known monogram/logo pattern (e.g. LV monogram, Dior oblique, Gucci GG, Chanel quilting + CC lock), you MAY set brand as a best-effort guess BUT then:
+  - set confidence="medium" or "low" (never "high")
+  - explain in notes that it was inferred from monogram/logo cues.
+- If no strong signal: brand=null and confidence="low".
 - If multiple items are present: focus on the most central / primary item.
 - Keep keyVisualCues short (2-6 items), like "monogram canvas", "chunky sole", "double G buckle", "quilted", "logo patch".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
@@ -150,7 +154,7 @@ ${JSON.stringify(facts, null, 2)}
 
 Rules:
 - Queries must be short and optimized for marketplace search.
-- broad: maximize recall; include category + (color/material) when present; avoid uncertain model names.
+- broad: maximize recall; include brand (if present or confidently implied by visibleText), plus category + (color/material) when present; avoid uncertain model names.
 - exact: include model ONLY if confidence is high and model is present.
 - strict: add "authentic genuine".
 - Avoid: replica, dupe, inspired, style, lookalike.
@@ -171,7 +175,8 @@ Return ONLY JSON:
 
 Rules:
 - If no text is visible: visibleText=[] and bestBrandGuess=null.
-- Do NOT guess unseen text.
+- You may set bestBrandGuess if there is a strong, recognizable brand signal from visible logo text OR iconic monogram/logo pattern.
+- If uncertain: bestBrandGuess=null.
 `.trim();
 }
 
