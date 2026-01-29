@@ -66,12 +66,30 @@ function normalizeFactsForQuery(facts: any) {
   const visibleText = Array.isArray(facts?.visibleText) ? facts.visibleText.join(" ").toLowerCase() : "";
 
   let brand = facts?.brand;
-  // If OCR sees a brand string but brand is missing, keep it (best-effort)
-  if (!brand && visibleText) {
-    // lightweight: if visibleText contains well-known brand tokens, keep the first match
-    const candidates = ["dior", "christian dior", "chanel", "gucci", "louis vuitton", "lv", "prada", "balenciaga", "loewe", "valentino", "margiela", "maison margiela", "comme des garcons", "adidas"]; 
+
+  const combinedSignals = `${visibleText} ${pattern} ${cues}`;
+
+  // If brand is missing, try a best-effort guess from strong visible signals
+  if (!brand && combinedSignals) {
+    // lightweight: if signals contain well-known brand tokens, keep the first match
+    const candidates = [
+      "christian dior",
+      "dior",
+      "chanel",
+      "gucci",
+      "louis vuitton",
+      "lv",
+      "prada",
+      "balenciaga",
+      "loewe",
+      "valentino",
+      "maison margiela",
+      "margiela",
+      "comme des garcons",
+      "adidas",
+    ];
     for (const c of candidates) {
-      if (visibleText.includes(c)) {
+      if (combinedSignals.includes(c)) {
         brand = c === "lv" ? "louis vuitton" : c;
         break;
       }
@@ -182,7 +200,7 @@ Return ONLY JSON matching the schema below.
 Schema:
 {
   "itemType": "bag"|"shoes"|"clothing"|"accessory"|"jewelry"|"watch"|"other",
-  "category": string, // choose a search-friendly subtype label. Prefer from this bag taxonomy when itemType="bag": boston bag, bowler bag, top handle bag, tote bag, shoulder bag, crossbody bag, hobo bag, bucket bag, clutch. Use "unknown" if unclear.
+  "category": string, // choose a search-friendly subtype label. Prefer from this bag taxonomy when itemType="bag": boston bag, top handle bag, tote bag, shoulder bag, crossbody bag, hobo bag, bucket bag, clutch. IMPORTANT: treat "bowler bag" as "boston bag" (use the label "boston bag"). Use "unknown" if unclear.
   "brand": string|null,
   "model": string|null,
   "color": string|null,

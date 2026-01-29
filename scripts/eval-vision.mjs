@@ -62,9 +62,22 @@ function asArray(v) {
 
 function hitAnyToken(haystack, expected) {
   const hs = norm(haystack);
-  const exp = asArray(expected)
-    .map((x) => norm(x))
-    .filter(Boolean);
+
+  // If expected is a string with spaces (e.g. "dior monogram"),
+  // accept hit if ANY meaningful sub-token hits.
+  const expanded = [];
+  for (const v of asArray(expected)) {
+    const s = norm(v);
+    if (!s) continue;
+    expanded.push(s);
+    if (s.includes(" ")) {
+      for (const part of s.split(" ")) {
+        if (part.length >= 3) expanded.push(part);
+      }
+    }
+  }
+
+  const exp = Array.from(new Set(expanded)).filter(Boolean);
   if (!exp.length) return null;
   return exp.some((t) => hs.includes(t));
 }
