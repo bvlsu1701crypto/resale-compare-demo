@@ -91,18 +91,30 @@ const BRAND_REQUIRE_VISIBLE_TEXT = new Set([
 
 // Brands that can be inferred from iconic monogram/pattern/logo cues (without explicit text)
 const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
-  "louis vuitton": /(lv|louis vuitton|lv monogram|damier|monogram)/,
-  "gucci": /(gg|web stripe|green red green|monogram|horsebit|double g|interlocking g)/,
-  "dior": /(oblique|dior oblique|dior monogram|monogram)/,
-  "chanel": /(cc|quilt|quilted|diamond quilt|mademoiselle|turnlock)/,
+  // LV: do NOT infer from generic "monogram" alone (too many brands have monograms).
+  // Require LV-specific signals.
+  "louis vuitton": /(\blv\b|louis vuitton|damier|monogram\s*lv|lv\s*monogram)/,
+
+  // Gucci: prefer explicit GG / horsebit / web stripe; avoid generic monogram.
+  "gucci": /(\bgg\b|web stripe|green red green|horsebit|double g|interlocking g)/,
+
+  // Dior: prefer oblique (avoid generic monogram)
+  "dior": /(oblique|dior oblique|dior monogram|christian dior)/,
+
+  "chanel": /(\bcc\b|quilt|quilted|diamond quilt|mademoiselle|turnlock)/,
+
   // adidas: three stripes / trefoil
   "adidas": /(three stripes|3 stripes|trefoil)/,
+
   // onitsuka tiger: tiger stripes (side stripes)
   "onitsuka tiger": /(tiger stripes|tiger stripe|side stripes)/,
+
   // alexander mcqueen: skull hardware / skull embellishment cues
   "alexander mcqueen": /(skull|skull buckle|skull heel|skull embellishment)/,
+
   // balenciaga: city/motorcycle bag cues
-  "balenciaga": /(city bag|motorcycle bag|giant studs|whipstitch|braided handles)/,
+  "balenciaga": /(city bag|motorcycle bag|giant studs|whipstitch|braided handles|front zip pocket|tassels)/,
+
   // maison margiela: four stitches / numbers label / tabi
   "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|margiela)/,
   "mm6": /(mm6|margiela)/,
