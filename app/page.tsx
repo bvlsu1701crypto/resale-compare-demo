@@ -67,9 +67,38 @@ function cleanToken(s: string) {
 }
 
 // Build platform URLs without scraping
-function platformUrl(p: Platform, query: string) {
+function ebayCategoryIdFromVision(v: any): string | null {
+  const cat = String(v?.category || "").toLowerCase();
+  const itemType = String(v?.itemType || "").toLowerCase();
+
+  // Best-effort eBay category ids (works reasonably well for UK too).
+  // If you want to be precise per-country, we can refine later.
+  // Women\'s Handbags & Bags
+  if (itemType === "bag" || cat.includes("bag") || cat.includes("handbag") || cat.includes("tote") || cat.includes("shoulder") || cat.includes("crossbody")) {
+    return "169291";
+  }
+
+  return null;
+}
+
+function platformUrl(p: Platform, query: string, vision?: any) {
   const q = encodeURIComponent(query);
-  if (p === "ebay") return `https://www.ebay.co.uk/sch/i.html?_nkw=${q}`;
+
+  if (p === "ebay") {
+    const base = `https://www.ebay.co.uk/sch/i.html?_nkw=${q}`;
+
+    const params: string[] = [];
+    // Add a category filter when we can (big speedup vs free-text only)
+    const sacat = ebayCategoryIdFromVision(vision);
+    if (sacat) params.push(`_sacat=${sacat}`);
+
+    // Slightly nicer defaults for testing
+    params.push(`_ipg=60`); // items per page
+    params.push(`LH_PrefLoc=1`); // prefer local (UK)
+
+    return params.length ? `${base}&${params.join("&")}` : base;
+  }
+
   if (p === "vinted") return `https://www.vinted.co.uk/catalog?search_text=${q}`;
   if (p === "depop") return `https://www.depop.com/search/?q=${q}`;
   if (p === "vestiaire") return `https://www.vestiairecollective.com/search/?q=${q}`;
@@ -509,7 +538,7 @@ export default function Page() {
       {chips.length > 0 && (
         <section style={{ marginTop: 14, display: "grid", gap: 12 }}>
           {platforms.map((p) => {
-            const url = platformUrl(p.key, activeQuery);
+            const url = platformUrl(p.key, activeQuery, vision);
             return (
               <a
                 key={p.key}
