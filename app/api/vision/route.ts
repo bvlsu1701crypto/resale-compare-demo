@@ -96,11 +96,13 @@ const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
   "dior": /(oblique|dior oblique|dior monogram|monogram)/,
   "chanel": /(cc|quilt|quilted|diamond quilt|mademoiselle|turnlock)/,
   // adidas: three stripes / trefoil
-  "adidas": /(three stripes|3 stripes|trefoil|adidas)/,
+  "adidas": /(three stripes|3 stripes|trefoil)/,
+  // onitsuka tiger: tiger stripes (side stripes)
+  "onitsuka tiger": /(tiger stripes|tiger stripe|side stripes)/,
   // maison margiela: four stitches / numbers label / tabi
-  "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|maison margiela|margiela)/,
-  "mm6": /(mm6|maison margiela|margiela)/,
-  "mm6 maison margiela": /(mm6|maison margiela|margiela)/,
+  "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|margiela)/,
+  "mm6": /(mm6|margiela)/,
+  "mm6 maison margiela": /(mm6|margiela)/,
 };
 
 function visibleHasBrand(visibleText: string, brand: string) {
@@ -283,25 +285,91 @@ function ensureToken(query: string, token: string | null) {
 }
 
 function stripSuspiciousBrandTokens(q: string) {
-  // Remove common hallucinated brand-y tokens that are not in our allowlist.
-  // (We keep it minimal to avoid over-stripping.)
-  const tokens = normalizeQuery(String(q || "")).split(" ").filter(Boolean);
+  // Remove hallucinated brand-ish tokens/phrases while keeping normal descriptors.
+  let s = normalizeQuery(String(q || "").toLowerCase());
+
+  // Drop known garbage tokens/phrases we saw in eval
+  s = s.replace(/\b(backchannel|spackhamer|lexileee|bvlcantea)\b/g, "");
+  s = s.replace(/\bphilippe\s+model\b/g, "");
+
+  const SAFE = new Set([
+    // common descriptors
+    "black",
+    "white",
+    "beige",
+    "brown",
+    "red",
+    "blue",
+    "green",
+    "grey",
+    "pink",
+    "multicolor",
+    "leather",
+    "patent",
+    "canvas",
+    "denim",
+    "nylon",
+    "suede",
+    "cotton",
+    "silk",
+    "wool",
+    "dress",
+    "skirt",
+    "top",
+    "hoodie",
+    "jacket",
+    "coat",
+    "sneakers",
+    "shoes",
+    "pumps",
+    "heels",
+    "boots",
+    "booties",
+    "ankle",
+    "bag",
+    "handbag",
+    "tote",
+    "tote bag",
+    "shoulder",
+    "shoulder bag",
+    "crossbody",
+    "crossbody bag",
+    "hobo",
+    "hobo bag",
+    "top",
+    "handle",
+    "top handle",
+    "top handle bag",
+    "boston",
+    "boston bag",
+    "monogram",
+    "quilted",
+    "quilt",
+    "authentic",
+    "genuine",
+  ]);
+
+  const tokens = s.split(/\s+/).filter(Boolean);
   const cleaned: string[] = [];
+
   for (const t of tokens) {
     const cand = normalizeBrand(t);
-    // normalizeBrand returns null for empty, otherwise returns token
     if (cand && BRAND_ALLOWLIST.has(cand)) {
       cleaned.push(t);
       continue;
     }
 
-    // Drop ALLCAPS-ish long weird tokens (often OCR hallucinations)
-    if (/^[a-z]{8,}$/.test(t.toLowerCase()) && !/[aeiou]/.test(t.toLowerCase())) {
+    if (SAFE.has(t)) {
+      cleaned.push(t);
       continue;
     }
 
+    // Drop long weird tokens that are likely OCR/brand hallucinations
+    if (t.length >= 9 && /^[a-z]+$/.test(t) && !/[aeiou]/.test(t)) continue;
+
     cleaned.push(t);
   }
+
   return normalizeQuery(cleaned.join(" "));
 }
 
@@ -405,13 +473,18 @@ Schema:
 
 Rules:
 - Prefer NOT to hallucinate brand or model.
+- HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, margiela four stitches), you may set brand as a best-effort guess (confidence must be medium/low).
 - If the brand name/logo text is clearly visible, set brand.
 - If the brand is not text-visible but the item has a very distinctive, widely-known monogram/logo pattern (e.g. LV monogram, Dior oblique, Gucci GG, Chanel quilting + CC lock), you MAY set brand as a best-effort guess BUT then:
   - set confidence="medium" or "low" (never "high")
   - explain in notes that it was inferred from monogram/logo cues.
 - If no strong signal: brand=null and confidence="low".
 - If multiple items are present: focus on the most central / primary item.
-- Keep keyVisualCues short (2-8 items), like "monogram canvas", "bowler shape", "top handles", "chunky sole", "double G buckle", "diamond quilting", "logo patch".
+- Keep keyVisualCues short (2-10 items), and INCLUDE iconic logo cues when present:
+  - "three stripes" (adidas)
+  - "tiger stripes" (onitsuka tiger)
+  - "four stitches" / "numbers label" (maison margiela)
+  Examples: "monogram canvas", "bowler shape", "top handles", "chunky sole", "three stripes", "tiger stripes", "diamond quilting", "logo patch".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
@@ -441,6 +514,7 @@ Rules:
 - Queries must be short and optimized for marketplace search.
 - broad: maximize recall; include brand (if present), category, and include ONE coarse color token when present (black/white/beige/brown/red/blue/green/grey/pink/multicolor).
 - If pattern indicates monogram or quilted, include the token "monogram" or "quilted" in broad.
+- NEVER invent a different brand name. If brand is not in FACTS.brand, do not add any brand-looking token.
 - exact: include model ONLY if confidence is high and model is present.
 - strict: add "authentic genuine".
 - Avoid: replica, dupe, inspired, style, lookalike.
