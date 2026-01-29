@@ -24,6 +24,11 @@ function readJsonl(p) {
 function norm(s) {
   return String(s || "")
     .toLowerCase()
+    // strip accents/diacritics (e.g. chloé -> chloe)
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    // remove punctuation like dots (cop.copine -> cop copine)
+    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }

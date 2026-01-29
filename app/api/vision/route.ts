@@ -82,10 +82,8 @@ const BRAND_ALLOWLIST = new Set([
 const BRAND_REQUIRE_VISIBLE_TEXT = new Set([
   "loewe",
   "chloe",
-  "alexander mcqueen",
-  // Note: margiela/mm6 can be inferred from iconic "four stitches"/numbers label cues
+  // Note: mcqueen can be inferred from iconic skull hardware; margiela/mm6 from four stitches/numbers label
   "valentino",
-  "balenciaga",
   "prada",
 ]);
 
@@ -99,6 +97,10 @@ const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
   "adidas": /(three stripes|3 stripes|trefoil)/,
   // onitsuka tiger: tiger stripes (side stripes)
   "onitsuka tiger": /(tiger stripes|tiger stripe|side stripes)/,
+  // alexander mcqueen: skull hardware / skull embellishment cues
+  "alexander mcqueen": /(skull|skull buckle|skull heel|skull embellishment)/,
+  // balenciaga: city/motorcycle bag cues
+  "balenciaga": /(city bag|motorcycle bag|giant studs|whipstitch|braided handles)/,
   // maison margiela: four stitches / numbers label / tabi
   "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|margiela)/,
   "mm6": /(mm6|margiela)/,
@@ -373,18 +375,44 @@ function stripSuspiciousBrandTokens(q: string) {
   return normalizeQuery(cleaned.join(" "));
 }
 
+function removeOtherBrands(q: string, keepBrand: string | null) {
+  let s = normalizeQuery(String(q || "").toLowerCase());
+  const keep = keepBrand ? normalizeBrand(keepBrand) : null;
+
+  // Remove any allowlisted brand tokens/phrases that are NOT the facts brand.
+  // This prevents "bottega veneta" sneaking into a McQueen shoe query.
+  const phrases = Array.from(BRAND_ALLOWLIST);
+  // Sort longer phrases first (e.g. "louis vuitton")
+  phrases.sort((a, b) => b.length - a.length);
+
+  for (const br of phrases) {
+    if (keep && br === keep) continue;
+    // remove whole-word occurrences of the brand phrase
+    const escaped = br.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(`\\b${escaped}\\b`, "g");
+    s = s.replace(re, "");
+  }
+
+  return normalizeQuery(s);
+}
+
 function postprocessQueries(facts: any, b: any) {
   const sq = b?.suggestedQueries || {};
   let broad = typeof sq.broad === "string" ? sq.broad : "";
   let exact = typeof sq.exact === "string" ? sq.exact : broad;
   let strict = typeof sq.strict === "string" ? sq.strict : "";
 
+  const brand = facts?.brand ? String(facts.brand) : null;
+
   // Basic sanitation
   broad = stripSuspiciousBrandTokens(broad);
   exact = stripSuspiciousBrandTokens(exact);
   strict = stripSuspiciousBrandTokens(strict);
 
-  const brand = facts?.brand ? String(facts.brand) : null;
+  // Hard rule: only allow FACTS.brand in the final queries
+  broad = removeOtherBrands(broad, brand);
+  exact = removeOtherBrands(exact, brand);
+  strict = removeOtherBrands(strict, brand);
   const material = facts?.material ? String(facts.material) : null;
   const pattern = String(facts?.pattern || "").toLowerCase();
 
@@ -473,18 +501,20 @@ Schema:
 
 Rules:
 - Prefer NOT to hallucinate brand or model.
-- HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, margiela four stitches), you may set brand as a best-effort guess (confidence must be medium/low).
+- HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, mcqueen skull hardware, balenciaga city bag cues, margiela four stitches), you may set brand as a best-effort guess (confidence must be medium/low).
 - If the brand name/logo text is clearly visible, set brand.
 - If the brand is not text-visible but the item has a very distinctive, widely-known monogram/logo pattern (e.g. LV monogram, Dior oblique, Gucci GG, Chanel quilting + CC lock), you MAY set brand as a best-effort guess BUT then:
   - set confidence="medium" or "low" (never "high")
   - explain in notes that it was inferred from monogram/logo cues.
 - If no strong signal: brand=null and confidence="low".
 - If multiple items are present: focus on the most central / primary item.
-- Keep keyVisualCues short (2-10 items), and INCLUDE iconic logo cues when present:
+- Keep keyVisualCues short (2-12 items), and INCLUDE iconic logo cues when present:
   - "three stripes" (adidas)
   - "tiger stripes" (onitsuka tiger)
+  - "skull hardware" / "skull buckle" (alexander mcqueen)
+  - "city bag" / "motorcycle bag" / "giant studs" (balenciaga)
   - "four stitches" / "numbers label" (maison margiela)
-  Examples: "monogram canvas", "bowler shape", "top handles", "chunky sole", "three stripes", "tiger stripes", "diamond quilting", "logo patch".
+  Examples: "monogram canvas", "city bag", "giant studs", "bowler shape", "top handles", "chunky sole", "three stripes", "tiger stripes", "skull buckle", "diamond quilting", "logo patch".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
