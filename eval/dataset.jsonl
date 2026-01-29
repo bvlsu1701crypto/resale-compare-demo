@@ -1,1 +1,2 @@
-{"id":"001","image":"eval/images/001.jpg","expected":{"category":"sneakers","brand":"nike"}}
+{"id":"001","image":"eval/images/001_dior_bag.JPG","expected":{"brand":"dior","category":"boston bag","material":["leather","canvas"],"color":["brown","red","green","yellow","multicolor"],"pattern":"dior monogram","silhouette":"saddle","mustInclude":["dior","monogram"],"mustNotInclude":["replica","dupe","inspired"]}}
+{"id":"002","image":"eval/images/002_chanel_bag.JPG","expected":{"brand":"chanel","category":"handbag","material":["leather","patent leather"],"color":["beige","light beige","cream","ivory"],"pattern":["quilted","chanel"],"silhouette":"square","mustInclude":["chanel","patent leather"],"mustNotInclude":["replica","dupe","inspired"]}}

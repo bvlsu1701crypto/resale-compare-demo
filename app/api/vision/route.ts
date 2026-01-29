@@ -41,6 +41,50 @@ function normalizeQuery(s: string) {
   return s.replace(/\s+/g, " ").trim();
 }
 
+function normalizeColor(raw: any): string | null {
+  const s = String(raw || "").toLowerCase().trim();
+  if (!s) return null;
+  // Coarse normalization for resale platforms
+  if (/(multi|rainbow|stripe|various|colorful)/.test(s)) return "multicolor";
+  if (/(cream|ivory|off[- ]?white|ecru|light beige|beige)/.test(s)) return "beige";
+  if (/(white)/.test(s)) return "white";
+  if (/(black)/.test(s)) return "black";
+  if (/(brown|tan|camel)/.test(s)) return "brown";
+  if (/(red|burgundy|maroon)/.test(s)) return "red";
+  if (/(blue|navy)/.test(s)) return "blue";
+  if (/(green)/.test(s)) return "green";
+  if (/(grey|gray|silver)/.test(s)) return "grey";
+  if (/(pink)/.test(s)) return "pink";
+  return s;
+}
+
+function normalizeFactsForQuery(facts: any) {
+  const color = normalizeColor(facts?.color);
+  // If cues strongly indicate multicolor, prefer multicolor
+  const cues = Array.isArray(facts?.keyVisualCues) ? facts.keyVisualCues.join(" ").toLowerCase() : "";
+  const pattern = String(facts?.pattern || "").toLowerCase();
+  const visibleText = Array.isArray(facts?.visibleText) ? facts.visibleText.join(" ").toLowerCase() : "";
+
+  let brand = facts?.brand;
+  // If OCR sees a brand string but brand is missing, keep it (best-effort)
+  if (!brand && visibleText) {
+    // lightweight: if visibleText contains well-known brand tokens, keep the first match
+    const candidates = ["dior", "christian dior", "chanel", "gucci", "louis vuitton", "lv", "prada", "balenciaga", "loewe", "valentino", "margiela", "maison margiela", "comme des garcons", "adidas"]; 
+    for (const c of candidates) {
+      if (visibleText.includes(c)) {
+        brand = c === "lv" ? "louis vuitton" : c;
+        break;
+      }
+    }
+  }
+
+  return {
+    ...facts,
+    brand,
+    color: /multi|rainbow|stripe|various|colorful/.test(`${cues} ${pattern}`) ? "multicolor" : color,
+  };
+}
+
 function safeJsonParse(s: string) {
   const raw = String(s || "").trim();
   if (!raw) return null;
@@ -138,7 +182,7 @@ Return ONLY JSON matching the schema below.
 Schema:
 {
   "itemType": "bag"|"shoes"|"clothing"|"accessory"|"jewelry"|"watch"|"other",
-  "category": string, // short human label, e.g. "sneakers", "hoodie", "tote bag", "leather jacket". Use "unknown" if unclear.
+  "category": string, // choose a search-friendly subtype label. Prefer from this bag taxonomy when itemType="bag": boston bag, bowler bag, top handle bag, tote bag, shoulder bag, crossbody bag, hobo bag, bucket bag, clutch. Use "unknown" if unclear.
   "brand": string|null,
   "model": string|null,
   "color": string|null,
@@ -157,7 +201,7 @@ Rules:
   - explain in notes that it was inferred from monogram/logo cues.
 - If no strong signal: brand=null and confidence="low".
 - If multiple items are present: focus on the most central / primary item.
-- Keep keyVisualCues short (2-6 items), like "monogram canvas", "chunky sole", "double G buckle", "quilted", "logo patch".
+- Keep keyVisualCues short (2-8 items), like "monogram canvas", "bowler shape", "top handles", "chunky sole", "double G buckle", "diamond quilting", "logo patch".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
@@ -185,12 +229,12 @@ ${JSON.stringify(facts, null, 2)}
 
 Rules:
 - Queries must be short and optimized for marketplace search.
-- broad: maximize recall; include brand (if present or confidently implied by visibleText), plus category + (color/material) when present; avoid uncertain model names.
+- broad: maximize recall; include brand (if present), category, and include ONE coarse color token when present (black/white/beige/brown/red/blue/green/grey/pink/multicolor).
+- If pattern indicates monogram or quilted, include the token "monogram" or "quilted" in broad.
 - exact: include model ONLY if confidence is high and model is present.
 - strict: add "authentic genuine".
 - Avoid: replica, dupe, inspired, style, lookalike.
 - Prefer lowercase, spaces, no punctuation.
-- If color is multi/various, use "multicolor".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
@@ -338,8 +382,10 @@ export async function POST(req: Request) {
       confidence: a?.confidence,
     };
 
-    // B uses only facts (this is what improves color/material/silhouette inclusion in queries)
-    const b = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts }) });
+    const normFacts = normalizeFactsForQuery(facts);
+
+    // B uses only normalized facts (coarse color + pattern tokens)
+    const b = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts: normFacts }) });
 
     const merged = mergeEnsemble(a, b, c);
     cache.set(key, { ts: now(), value: merged });
