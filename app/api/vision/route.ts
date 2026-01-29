@@ -83,20 +83,24 @@ const BRAND_REQUIRE_VISIBLE_TEXT = new Set([
   "loewe",
   "chloe",
   "alexander mcqueen",
-  "maison margiela",
-  "mm6",
-  "mm6 maison margiela",
+  // Note: margiela/mm6 can be inferred from iconic "four stitches"/numbers label cues
   "valentino",
   "balenciaga",
   "prada",
 ]);
 
-// Brands that can be inferred from iconic monogram/pattern cues
+// Brands that can be inferred from iconic monogram/pattern/logo cues (without explicit text)
 const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
   "louis vuitton": /(lv|louis vuitton|lv monogram|damier|monogram)/,
-  "gucci": /(gucci|gg|gucci gg|web stripe|monogram)/,
-  "dior": /(dior|oblique|dior oblique|dior monogram|monogram)/,
-  "chanel": /(chanel|cc|quilt|quilted|diamond quilt)/,
+  "gucci": /(gg|web stripe|green red green|monogram|horsebit|double g|interlocking g)/,
+  "dior": /(oblique|dior oblique|dior monogram|monogram)/,
+  "chanel": /(cc|quilt|quilted|diamond quilt|mademoiselle|turnlock)/,
+  // adidas: three stripes / trefoil
+  "adidas": /(three stripes|3 stripes|trefoil|adidas)/,
+  // maison margiela: four stitches / numbers label / tabi
+  "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|maison margiela|margiela)/,
+  "mm6": /(mm6|maison margiela|margiela)/,
+  "mm6 maison margiela": /(mm6|maison margiela|margiela)/,
 };
 
 function visibleHasBrand(visibleText: string, brand: string) {
@@ -278,11 +282,39 @@ function ensureToken(query: string, token: string | null) {
   return normalizeQuery(`${q} ${t}`);
 }
 
+function stripSuspiciousBrandTokens(q: string) {
+  // Remove common hallucinated brand-y tokens that are not in our allowlist.
+  // (We keep it minimal to avoid over-stripping.)
+  const tokens = normalizeQuery(String(q || "")).split(" ").filter(Boolean);
+  const cleaned: string[] = [];
+  for (const t of tokens) {
+    const cand = normalizeBrand(t);
+    // normalizeBrand returns null for empty, otherwise returns token
+    if (cand && BRAND_ALLOWLIST.has(cand)) {
+      cleaned.push(t);
+      continue;
+    }
+
+    // Drop ALLCAPS-ish long weird tokens (often OCR hallucinations)
+    if (/^[a-z]{8,}$/.test(t.toLowerCase()) && !/[aeiou]/.test(t.toLowerCase())) {
+      continue;
+    }
+
+    cleaned.push(t);
+  }
+  return normalizeQuery(cleaned.join(" "));
+}
+
 function postprocessQueries(facts: any, b: any) {
   const sq = b?.suggestedQueries || {};
   let broad = typeof sq.broad === "string" ? sq.broad : "";
   let exact = typeof sq.exact === "string" ? sq.exact : broad;
   let strict = typeof sq.strict === "string" ? sq.strict : "";
+
+  // Basic sanitation
+  broad = stripSuspiciousBrandTokens(broad);
+  exact = stripSuspiciousBrandTokens(exact);
+  strict = stripSuspiciousBrandTokens(strict);
 
   const brand = facts?.brand ? String(facts.brand) : null;
   const material = facts?.material ? String(facts.material) : null;
