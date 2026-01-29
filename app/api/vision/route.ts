@@ -78,6 +78,7 @@ const BRAND_ALLOWLIST = new Set([
   "adidas",
   "onitsuka tiger",
   "chloe",
+  "coach",
 ]);
 
 // Brands we only accept when the brand text is actually visible (to prevent "looks like" confusion)
@@ -119,6 +120,8 @@ const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
   "maison margiela": /(four stitches|four stitch|numbers label|numeric label|tabi|margiela)/,
   "mm6": /(mm6|margiela)/,
   "mm6 maison margiela": /(mm6|margiela)/,
+  // coach: signature C pattern / C buckle
+  "coach": /(coach|signature c|c monogram|c pattern|c buckle)/,
 };
 
 function visibleHasBrand(visibleText: string, brand: string) {

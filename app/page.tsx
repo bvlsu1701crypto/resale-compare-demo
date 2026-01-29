@@ -81,8 +81,27 @@ function ebayCategoryIdFromVision(v: any): string | null {
   return null;
 }
 
-function platformUrl(p: Platform, query: string, vision?: any) {
-  const q = encodeURIComponent(query);
+function buildEbayQuery(query: string, chips: Chip[]) {
+  // Append enabled chips to query (dedupe) so user selections always influence eBay search.
+  const base = normalizeSpaces(query);
+  const extras = chips
+    .filter((c) => c.on)
+    .map((c) => cleanToken(c.text))
+    .filter(Boolean);
+
+  const tokens = uniq(
+    normalizeSpaces([base, ...extras].join(" "))
+      .split(" ")
+      .map((x) => x.trim())
+      .filter(Boolean)
+  );
+
+  return normalizeSpaces(tokens.join(" "));
+}
+
+function platformUrl(p: Platform, query: string, vision?: any, chips: Chip[] = []) {
+  const finalQuery = p === "ebay" ? buildEbayQuery(query, chips) : query;
+  const q = encodeURIComponent(finalQuery);
 
   if (p === "ebay") {
     const base = `https://www.ebay.co.uk/sch/i.html?_nkw=${q}`;
@@ -538,7 +557,7 @@ export default function Page() {
       {chips.length > 0 && (
         <section style={{ marginTop: 14, display: "grid", gap: 12 }}>
           {platforms.map((p) => {
-            const url = platformUrl(p.key, activeQuery, vision);
+            const url = platformUrl(p.key, activeQuery, vision, chips);
             return (
               <a
                 key={p.key}
