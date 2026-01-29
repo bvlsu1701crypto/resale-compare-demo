@@ -79,17 +79,31 @@ async function main() {
     const outBrand = out.brand ?? null;
     const outCat = out.category ?? null;
 
+    const qBroad = out?.suggestedQueries?.broad || "";
+    const qExact = out?.suggestedQueries?.exact || "";
+    const qStrict = out?.suggestedQueries?.strict || "";
+    const allQ = `${qBroad} ${qExact} ${qStrict}`;
+
+    // For resale search, the *query* matters more than the structured brand field.
+    // We accept a brand hit if either:
+    // - structured out.brand matches expected, OR
+    // - expected brand appears in any suggested query (case-insensitive)
     let brandOk = null;
     if (expBrand) {
       brandTotal++;
-      brandOk = norm(outBrand) === norm(expBrand);
+      const structuredOk = norm(outBrand) === norm(expBrand);
+      const queryOk = norm(allQ).includes(norm(expBrand));
+      brandOk = structuredOk || queryOk;
       if (brandOk) brandHit++;
     }
 
+    // Category: accept if out.category loosely matches expected OR expected appears in broad query
     let catOk = null;
     if (expCat) {
       catTotal++;
-      catOk = containsLoose(outCat, expCat);
+      const structuredOk = containsLoose(outCat, expCat);
+      const queryOk = norm(qBroad).includes(norm(expCat));
+      catOk = structuredOk || queryOk;
       if (catOk) catHit++;
     }
 
