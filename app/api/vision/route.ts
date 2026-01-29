@@ -42,10 +42,41 @@ function normalizeQuery(s: string) {
 }
 
 function safeJsonParse(s: string) {
+  const raw = String(s || "").trim();
+  if (!raw) return null;
+
+  // Common failure mode: model wraps JSON in ```json fences
+  const unfenced = raw
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/i, "")
+    .trim();
+
   try {
-    return JSON.parse(s);
+    return JSON.parse(unfenced);
   } catch {
-    return null;
+    // Best-effort: extract the first top-level JSON object/array substring
+    const firstObj = unfenced.indexOf("{");
+    const firstArr = unfenced.indexOf("[");
+    let start = -1;
+    if (firstObj !== -1 && firstArr !== -1) start = Math.min(firstObj, firstArr);
+    else start = firstObj !== -1 ? firstObj : firstArr;
+
+    if (start === -1) return null;
+
+    const endObj = unfenced.lastIndexOf("}");
+    const endArr = unfenced.lastIndexOf("]");
+    let end = -1;
+    if (endObj !== -1 && endArr !== -1) end = Math.max(endObj, endArr);
+    else end = endObj !== -1 ? endObj : endArr;
+
+    if (end === -1 || end <= start) return null;
+
+    const slice = unfenced.slice(start, end + 1);
+    try {
+      return JSON.parse(slice);
+    } catch {
+      return null;
+    }
   }
 }
 
