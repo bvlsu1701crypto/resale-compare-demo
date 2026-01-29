@@ -362,6 +362,17 @@ export default function Page() {
             </div>
           </div>
 
+          {/* Iconic model (debug/product validation) */}
+          {vision?.iconicModel?.label && (
+            <div style={{ marginTop: 10, fontSize: 12, color: "#333", lineHeight: 1.4 }}>
+              <div style={{ fontWeight: 900 }}>Iconic model</div>
+              <div>
+                {vision.iconicModel.label}
+                {vision.iconicModel.score ? ` (score ${vision.iconicModel.score})` : ""}
+              </div>
+            </div>
+          )}
+
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 10 }}>
             {chips.map((c) => (
               <div

@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import crypto from "crypto";
 import { detectIconicModels } from "@/app/lib/iconicModels";
+import { ICONIC_BAGS_TOP20 } from "@/app/lib/iconicCatalog";
 
 export const runtime = "nodejs";
 
@@ -520,6 +521,47 @@ Rules:
 `.trim();
 }
 
+function buildPromptIconicBagClassifier(args: { facts: any }) {
+  const { facts } = args;
+  const items = ICONIC_BAGS_TOP20.map((x) => ({ id: x.id, label: x.label }));
+
+  return `
+You are classifying whether an image shows one of the following iconic resale bags.
+Only choose an item if you are reasonably confident from visible shape/logo cues.
+If not confident, return id=null.
+Return ONLY JSON.
+
+Candidates:
+${JSON.stringify(items, null, 2)}
+
+Context facts (may be incomplete):
+${JSON.stringify(
+  {
+    itemType: facts?.itemType,
+    category: facts?.category,
+    color: facts?.color,
+    material: facts?.material,
+    pattern: facts?.pattern,
+    keyVisualCues: facts?.keyVisualCues,
+    visibleText: facts?.visibleText,
+  },
+  null,
+  2
+)}
+
+JSON schema:
+{
+  "id": string|null,
+  "confidence": "high"|"medium"|"low",
+  "evidence": string[]
+}
+
+Rules:
+- If you choose an id, evidence must mention 2-5 concrete visible cues (e.g. "braided handles", "front zip pocket", "saddle silhouette", "puzzle paneling", "triomphe clasp").
+- If id is null, confidence must be "low".
+`.trim();
+}
+
 function buildPromptBFromFacts(args: { userHint: string; facts: any }) {
   const { userHint, facts } = args;
   return `
@@ -704,19 +746,37 @@ export async function POST(req: Request) {
 
     const normFacts = normalizeFactsForQuery(facts);
 
+    // v0: rule-based iconic detection
     const iconicHits = detectIconicModels(normFacts);
-    const bestIconic = iconicHits[0] || null;
+    let bestIconic = iconicHits[0] || null;
+
+    // v1: for bags, run a constrained classifier over the Top-20 list (higher recall for classic shapes)
+    if ((normFacts as any).itemType === "bag") {
+      try {
+        const cls = await callVisionJSON({ dataUrl, prompt: buildPromptIconicBagClassifier({ facts: normFacts }) });
+        if (cls && cls.id && cls.confidence && cls.confidence !== "low") {
+          const picked = ICONIC_BAGS_TOP20.find((x) => x.id === cls.id);
+          if (picked) {
+            bestIconic = {
+              id: picked.id,
+              label: picked.label,
+              brand: picked.brand,
+              model: picked.model,
+              score: cls.confidence === "high" ? 10 : 7,
+              evidence: Array.isArray(cls.evidence) ? cls.evidence : [],
+            } as any;
+          }
+        }
+      } catch {
+        // ignore classifier errors; fall back to rule engine
+      }
+    }
 
     // If iconic model triggers, promote brand/model/category signals for query generation.
     if (bestIconic) {
       normFacts.brand = bestIconic.brand;
-      // keep existing category if specific; else set to a helpful bag/shoe type
-      if (!normFacts.category || normFacts.category === "unknown") {
-        normFacts.category = normFacts.itemType === "bag" ? "bag" : normFacts.category;
-      }
-      // stash for downstream
-      (normFacts as any).iconicModelCandidates = iconicHits;
       (normFacts as any).model = normFacts.model || bestIconic.model;
+      (normFacts as any).iconicModelCandidates = iconicHits;
     }
 
     // B uses only normalized facts (coarse color + pattern tokens)
