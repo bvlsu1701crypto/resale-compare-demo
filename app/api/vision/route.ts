@@ -96,6 +96,12 @@ function normalizeFactsForQuery(facts: any) {
     }
   }
 
+  // Demo-only heuristic: some monogram + multicolor stripe style often indicates Dior.
+  // Keep confidence controlled elsewhere; this is only to improve search usefulness.
+  if (!brand && /monogram/.test(pattern) && /multi|rainbow|stripe/.test(`${pattern} ${cues}`)) {
+    brand = "dior";
+  }
+
   return {
     ...facts,
     brand,
@@ -165,6 +171,63 @@ async function callVisionJSON(args: {
   const json = safeJsonParse(out);
   if (!json) throw new Error(`Non-JSON output from model (${model})`);
   return json;
+}
+
+function ensureToken(query: string, token: string | null) {
+  const q = normalizeQuery(String(query || "").toLowerCase());
+  const t = normalizeQuery(String(token || "").toLowerCase());
+  if (!t) return q;
+  if (q.includes(t)) return q;
+  return normalizeQuery(`${q} ${t}`);
+}
+
+function postprocessQueries(facts: any, b: any) {
+  const sq = b?.suggestedQueries || {};
+  let broad = typeof sq.broad === "string" ? sq.broad : "";
+  let exact = typeof sq.exact === "string" ? sq.exact : broad;
+  let strict = typeof sq.strict === "string" ? sq.strict : "";
+
+  const brand = facts?.brand ? String(facts.brand) : null;
+  const material = facts?.material ? String(facts.material) : null;
+  const pattern = String(facts?.pattern || "").toLowerCase();
+
+  // Always include brand in all queries if we have one
+  broad = ensureToken(broad, brand);
+  exact = ensureToken(exact, brand);
+  strict = ensureToken(strict || exact, brand);
+
+  // Include material in exact/strict; include in broad if it's a strong discriminator (e.g. patent leather)
+  if (material && /patent leather|suede|denim|nylon/.test(material.toLowerCase())) {
+    broad = ensureToken(broad, material);
+  }
+  exact = ensureToken(exact, material);
+  strict = ensureToken(strict, material);
+
+  // Ensure pattern tokens
+  if (/monogram/.test(pattern)) {
+    broad = ensureToken(broad, "monogram");
+    exact = ensureToken(exact, "monogram");
+    strict = ensureToken(strict, "monogram");
+  }
+  if (/quilt/.test(pattern)) {
+    broad = ensureToken(broad, "quilted");
+    exact = ensureToken(exact, "quilted");
+    strict = ensureToken(strict, "quilted");
+  }
+
+  // Ensure strict prefix
+  if (!normalizeQuery(strict).includes("authentic") || !normalizeQuery(strict).includes("genuine")) {
+    strict = normalizeQuery(`authentic genuine ${strict}`);
+  }
+
+  return {
+    ...b,
+    suggestedQueries: {
+      broad: normalizeQuery(broad),
+      exact: normalizeQuery(exact),
+      strict: normalizeQuery(strict),
+    },
+  };
 }
 
 async function callTextJSON(args: { prompt: string; model?: string }) {
@@ -403,7 +466,8 @@ export async function POST(req: Request) {
     const normFacts = normalizeFactsForQuery(facts);
 
     // B uses only normalized facts (coarse color + pattern tokens)
-    const b = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts: normFacts }) });
+    const b0 = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts: normFacts }) });
+    const b = postprocessQueries(normFacts, b0);
 
     const merged = mergeEnsemble(a, b, c);
     cache.set(key, { ts: now(), value: merged });
