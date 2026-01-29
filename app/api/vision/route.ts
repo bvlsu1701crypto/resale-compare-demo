@@ -518,7 +518,8 @@ Schema:
 
 Rules:
 - Prefer NOT to hallucinate brand or model.
-- HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, mcqueen skull hardware, balenciaga city bag cues, margiela four stitches), you may set brand as a best-effort guess (confidence must be medium/low).
+- Coach special-case: if a repeating "signature C" pattern is clearly visible, set pattern="signature c" (not just generic "monogram"), add keyVisualCues including "signature c", and you may set brand="coach" with confidence="medium".
+- HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, mcqueen skull hardware, balenciaga city bag cues, margiela four stitches, coach signature c), you may set brand as a best-effort guess (confidence must be medium/low).
 - If the brand name/logo text is clearly visible, set brand.
 - If the brand is not text-visible but the item has a very distinctive, widely-known monogram/logo pattern (e.g. LV monogram, Dior oblique, Gucci GG, Chanel quilting + CC lock), you MAY set brand as a best-effort guess BUT then:
   - set confidence="medium" or "low" (never "high")
@@ -531,7 +532,8 @@ Rules:
   - "skull hardware" / "skull buckle" (alexander mcqueen)
   - "city bag" / "motorcycle bag" / "giant studs" (balenciaga)
   - "four stitches" / "numbers label" (maison margiela)
-  Examples: "monogram canvas", "city bag", "giant studs", "bowler shape", "top handles", "chunky sole", "three stripes", "tiger stripes", "skull buckle", "diamond quilting", "logo patch".
+  - "signature c" (coach)
+  Examples: "signature c", "monogram canvas", "city bag", "giant studs", "bowler shape", "top handles", "chunky sole", "three stripes", "tiger stripes", "skull buckle", "diamond quilting", "logo patch".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
