@@ -164,30 +164,24 @@ export default function Page() {
   }
 
   function buildQuery(kind: Strategy) {
-    // Preferred: use model-generated suggested queries from vision (ensemble output)
-    const sq = vision?.suggestedQueries;
-    if (sq && typeof sq === "object") {
-      const direct = kind !== "chips" ? sq[kind] : null;
-      if (typeof direct === "string" && direct.trim()) return normalizeSpaces(direct);
-    }
-
-    // Fallback: build from chips
+    // IMPORTANT UX: the "Detected keywords" chips are the source of truth.
+    // Toggling/deleting chips must change the query.
     const on = chips.filter((c) => c.on).map((c) => c.text);
-    const get = (k: string) => chips.find((c) => c.kind === k)?.text;
+    const get = (k: string) => chips.find((c) => c.kind === k && c.on)?.text;
 
-    const category = get("category") || get("itemType") || get("categoryHint") || "item";
+    // Prefer iconic model when present (it is the most search-useful signal)
+    const iconicLabel = cleanToken(vision?.iconicModel?.label);
+
+    const category = get("category") || cleanToken(vision?.category) || cleanToken(vision?.itemType) || "item";
     const brand = get("brand");
     const model = get("model");
     const color = get("color");
     const material = get("material");
     const pattern = get("pattern");
 
-    if (kind === "exact" && brand && model) {
-      return normalizeSpaces([brand, model, category, color, material, pattern].filter(Boolean).join(" "));
-    }
-
     if (kind === "strict") {
       return normalizeSpaces([
+        iconicLabel,
         brand,
         model,
         category,
@@ -195,16 +189,29 @@ export default function Page() {
         material,
         pattern,
         "authentic genuine",
+        ...on,
+      ]
+        .filter(Boolean)
+        .join(" "));
+    }
+
+    if (kind === "exact") {
+      return normalizeSpaces([
+        iconicLabel,
+        brand,
+        model,
+        category,
+        color,
+        material,
+        pattern,
+        ...on,
       ]
         .filter(Boolean)
         .join(" "));
     }
 
     // broad / chips
-    return (
-      normalizeSpaces([brand, category, color, material].filter(Boolean).join(" ")) ||
-      normalizeSpaces(on.join(" "))
-    );
+    return normalizeSpaces([iconicLabel, brand, category, color, material, ...on].filter(Boolean).join(" "));
   }
 
   const activeQuery = useMemo(() => {
