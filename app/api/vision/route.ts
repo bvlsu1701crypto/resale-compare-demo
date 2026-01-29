@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
 import crypto from "crypto";
+import { detectIconicModels } from "@/app/lib/iconicModels";
 
 export const runtime = "nodejs";
 
@@ -703,11 +704,33 @@ export async function POST(req: Request) {
 
     const normFacts = normalizeFactsForQuery(facts);
 
+    const iconicHits = detectIconicModels(normFacts);
+    const bestIconic = iconicHits[0] || null;
+
+    // If iconic model triggers, promote brand/model/category signals for query generation.
+    if (bestIconic) {
+      normFacts.brand = bestIconic.brand;
+      // keep existing category if specific; else set to a helpful bag/shoe type
+      if (!normFacts.category || normFacts.category === "unknown") {
+        normFacts.category = normFacts.itemType === "bag" ? "bag" : normFacts.category;
+      }
+      // stash for downstream
+      (normFacts as any).iconicModelCandidates = iconicHits;
+      (normFacts as any).model = normFacts.model || bestIconic.model;
+    }
+
     // B uses only normalized facts (coarse color + pattern tokens)
     const b0 = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts: normFacts }) });
     const b = postprocessQueries(normFacts, b0);
 
-    const merged = mergeEnsemble(a, b, c);
+    const merged0 = mergeEnsemble(a, b, c);
+
+    // Attach iconic model hits for UI/debugging
+    const merged = {
+      ...merged0,
+      iconicModelCandidates: (normFacts as any).iconicModelCandidates || [],
+      iconicModel: bestIconic ? { id: bestIconic.id, label: bestIconic.label, brand: bestIconic.brand, model: bestIconic.model, score: bestIconic.score } : null,
+    };
     cache.set(key, { ts: now(), value: merged });
 
     return NextResponse.json(merged);
