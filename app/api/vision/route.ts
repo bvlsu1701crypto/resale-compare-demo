@@ -78,6 +78,53 @@ const BRAND_ALLOWLIST = new Set([
   "chloe",
 ]);
 
+// Brands we only accept when the brand text is actually visible (to prevent "looks like" confusion)
+const BRAND_REQUIRE_VISIBLE_TEXT = new Set([
+  "loewe",
+  "chloe",
+  "alexander mcqueen",
+  "maison margiela",
+  "mm6",
+  "mm6 maison margiela",
+  "valentino",
+  "balenciaga",
+  "prada",
+]);
+
+// Brands that can be inferred from iconic monogram/pattern cues
+const BRAND_ICONIC_PATTERN: Record<string, RegExp> = {
+  "louis vuitton": /(lv|louis vuitton|lv monogram|damier|monogram)/,
+  "gucci": /(gucci|gg|gucci gg|web stripe|monogram)/,
+  "dior": /(dior|oblique|dior oblique|dior monogram|monogram)/,
+  "chanel": /(chanel|cc|quilt|quilted|diamond quilt)/,
+};
+
+function visibleHasBrand(visibleText: string, brand: string) {
+  const v = visibleText.toLowerCase();
+  const b = brand.toLowerCase();
+  if (!v || !b) return false;
+  if (b === "louis vuitton") return v.includes("louis") || v.includes("vuitton") || v.includes("lv");
+  return v.includes(b);
+}
+
+function isBrandAllowedWithEvidence(opts: { brand: string; visibleText: string; signals: string }) {
+  const brand = opts.brand;
+  if (!BRAND_ALLOWLIST.has(brand)) return false;
+
+  // If brand requires visible text, enforce it
+  if (BRAND_REQUIRE_VISIBLE_TEXT.has(brand)) {
+    return visibleHasBrand(opts.visibleText, brand);
+  }
+
+  // Otherwise allow if visible text contains it OR iconic pattern matches
+  if (visibleHasBrand(opts.visibleText, brand)) return true;
+  const re = BRAND_ICONIC_PATTERN[brand];
+  if (re && re.test(opts.signals)) return true;
+
+  // Default: require visible text
+  return false;
+}
+
 function normalizeBrand(raw: any): string | null {
   const s = String(raw || "").toLowerCase().trim();
   if (!s) return null;
@@ -96,12 +143,16 @@ function normalizeBrand(raw: any): string | null {
   return v;
 }
 
-function acceptBrand(raw: any): string | null {
+function acceptBrand(raw: any, evidence?: { visibleText?: string; signals?: string }): string | null {
   const b = normalizeBrand(raw);
   if (!b) return null;
-  // Only accept from allowlist to avoid OCR hallucinations like "SPACKHAMER"
-  if (BRAND_ALLOWLIST.has(b)) return b;
-  return null;
+
+  const visibleText = String(evidence?.visibleText || "").toLowerCase();
+  const signals = String(evidence?.signals || "").toLowerCase();
+
+  // Only accept from allowlist AND with evidence to avoid OCR hallucinations like "SPACKHAMER"/"BACKCHANNEL"
+  if (!isBrandAllowedWithEvidence({ brand: b, visibleText, signals })) return null;
+  return b;
 }
 
 function normalizeFactsForQuery(facts: any) {
@@ -111,9 +162,9 @@ function normalizeFactsForQuery(facts: any) {
   const pattern = String(facts?.pattern || "").toLowerCase();
   const visibleText = Array.isArray(facts?.visibleText) ? facts.visibleText.join(" ").toLowerCase() : "";
 
-  let brand = acceptBrand(facts?.brand);
-
   const combinedSignals = `${visibleText} ${pattern} ${cues}`;
+
+  let brand = acceptBrand(facts?.brand, { visibleText, signals: combinedSignals });
 
   // If brand is missing, try a best-effort guess from strong visible signals
   if (!brand && combinedSignals) {
@@ -136,7 +187,7 @@ function normalizeFactsForQuery(facts: any) {
     ];
     for (const c of candidates) {
       if (combinedSignals.includes(c)) {
-        brand = acceptBrand(c === "lv" ? "louis vuitton" : c);
+        brand = acceptBrand(c === "lv" ? "louis vuitton" : c, { visibleText, signals: combinedSignals });
         break;
       }
     }
@@ -145,7 +196,7 @@ function normalizeFactsForQuery(facts: any) {
   // Demo-only heuristic: some monogram + multicolor stripe style often indicates Dior.
   // Keep confidence controlled elsewhere; this is only to improve search usefulness.
   if (!brand && /monogram/.test(pattern) && /multi|rainbow|stripe/.test(`${pattern} ${cues}`)) {
-    brand = acceptBrand("dior");
+    brand = acceptBrand("dior", { visibleText, signals: combinedSignals });
   }
 
   return {
@@ -387,8 +438,13 @@ function mergeEnsemble(a: any, b: any, c: any) {
   const category = (typeof a?.category === "string" && a.category) || "unknown";
 
   // Brand: prefer A.brand if present; else C.bestBrandGuess.
-  // If both present but disagree, keep A.brand (more constrained) and lower confidence.
-  let brand = pickFirstNonEmpty(a?.brand, c?.bestBrandGuess);
+  // Apply allowlist + evidence rules to avoid OCR hallucinations.
+  const visibleText = Array.isArray(c?.visibleText) ? c.visibleText.join(" ").toLowerCase() : "";
+  const cuesText = Array.isArray(a?.keyVisualCues) ? a.keyVisualCues.join(" ").toLowerCase() : "";
+  const patternText = String(a?.pattern || "").toLowerCase();
+  const signals = `${visibleText} ${patternText} ${cuesText}`;
+
+  let brand = acceptBrand(pickFirstNonEmpty(a?.brand, c?.bestBrandGuess), { visibleText, signals });
 
   const model = typeof a?.model === "string" ? a.model : null;
   const color = typeof a?.color === "string" ? a.color : null;
