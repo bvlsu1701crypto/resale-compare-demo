@@ -54,6 +54,28 @@ function hasBadWords(q) {
   return bad.filter((w) => s.includes(w));
 }
 
+function asArray(v) {
+  if (v == null) return [];
+  if (Array.isArray(v)) return v;
+  return [v];
+}
+
+function hitAnyToken(haystack, expected) {
+  const hs = norm(haystack);
+  const exp = asArray(expected)
+    .map((x) => norm(x))
+    .filter(Boolean);
+  if (!exp.length) return null;
+  return exp.some((t) => hs.includes(t));
+}
+
+function hitLooseField(gotValue, expectedValue) {
+  const exp = asArray(expectedValue).filter((x) => x != null);
+  if (!exp.length) return null;
+  const gv = gotValue;
+  return exp.some((e) => containsLoose(gv, e));
+}
+
 async function main() {
   const rows = readJsonl(datasetPath);
 
@@ -61,6 +83,21 @@ async function main() {
     brandHit = 0;
   let catTotal = 0,
     catHit = 0;
+
+  let materialTotal = 0,
+    materialHit = 0;
+  let colorTotal = 0,
+    colorHit = 0;
+  let patternTotal = 0,
+    patternHit = 0;
+  let silhouetteTotal = 0,
+    silhouetteHit = 0;
+
+  let mustIncTotal = 0,
+    mustIncHitBroad = 0,
+    mustIncHitExact = 0,
+    mustIncHitStrict = 0;
+
   let strictTotal = 0,
     strictHasAuth = 0;
   let badWordCount = 0;
@@ -75,9 +112,16 @@ async function main() {
 
     const expBrand = expected.brand ?? null;
     const expCat = expected.category ?? null;
+    const expMaterial = expected.material ?? null;
+    const expColor = expected.color ?? null;
+    const expPattern = expected.pattern ?? null;
+    const expSilhouette = expected.silhouette ?? null;
+    const expMustInclude = expected.mustInclude ?? null;
 
     const outBrand = out.brand ?? null;
     const outCat = out.category ?? null;
+    const outMaterial = out.material ?? null;
+    const outPattern = out.pattern ?? null;
 
     const qBroad = out?.suggestedQueries?.broad || "";
     const qExact = out?.suggestedQueries?.exact || "";
@@ -101,10 +145,60 @@ async function main() {
     let catOk = null;
     if (expCat) {
       catTotal++;
-      const structuredOk = containsLoose(outCat, expCat);
-      const queryOk = norm(qBroad).includes(norm(expCat));
-      catOk = structuredOk || queryOk;
+      const structuredOk = hitLooseField(outCat, expCat);
+      const queryOk = hitAnyToken(qBroad, expCat);
+      catOk = Boolean(structuredOk || queryOk);
       if (catOk) catHit++;
+    }
+
+    // Material / Color / Pattern / Silhouette (fine-grained)
+    let materialOk = null;
+    if (expMaterial != null) {
+      materialTotal++;
+      materialOk = Boolean(hitAnyToken(`${outMaterial} ${allQ}`, expMaterial));
+      if (materialOk) materialHit++;
+    }
+
+    let colorOk = null;
+    if (expColor != null) {
+      colorTotal++;
+      colorOk = Boolean(hitAnyToken(allQ, expColor));
+      if (colorOk) colorHit++;
+    }
+
+    let patternOk = null;
+    if (expPattern != null) {
+      patternTotal++;
+      patternOk = Boolean(hitAnyToken(`${outPattern} ${allQ}`, expPattern));
+      if (patternOk) patternHit++;
+    }
+
+    let silhouetteOk = null;
+    if (expSilhouette != null) {
+      silhouetteTotal++;
+      const cues = Array.isArray(out?.keyVisualCues) ? out.keyVisualCues.join(" ") : "";
+      silhouetteOk = Boolean(hitAnyToken(`${cues} ${allQ}`, expSilhouette));
+      if (silhouetteOk) silhouetteHit++;
+    }
+
+    // mustInclude: require ALL tokens to appear (in each query type)
+    let mustIncludeOkBroad = null;
+    let mustIncludeOkExact = null;
+    let mustIncludeOkStrict = null;
+    if (expMustInclude != null) {
+      const tokens = asArray(expMustInclude).map((x) => norm(x)).filter(Boolean);
+      if (tokens.length) {
+        mustIncTotal++;
+        const hb = norm(qBroad);
+        const he = norm(qExact);
+        const hs = norm(qStrict);
+        mustIncludeOkBroad = tokens.every((t) => hb.includes(t));
+        mustIncludeOkExact = tokens.every((t) => he.includes(t));
+        mustIncludeOkStrict = tokens.every((t) => hs.includes(t));
+        if (mustIncludeOkBroad) mustIncHitBroad++;
+        if (mustIncludeOkExact) mustIncHitExact++;
+        if (mustIncludeOkStrict) mustIncHitStrict++;
+      }
     }
 
     strictTotal++;
@@ -126,9 +220,22 @@ async function main() {
         brand: outBrand,
         category: outCat,
         confidence: out.confidence,
+        material: outMaterial,
+        pattern: outPattern,
         suggestedQueries: out.suggestedQueries,
       },
-      checks: { brandOk, catOk, badWords: Array.from(new Set(bad)) },
+      checks: {
+        brandOk,
+        catOk,
+        materialOk,
+        colorOk,
+        patternOk,
+        silhouetteOk,
+        mustIncludeOkBroad,
+        mustIncludeOkExact,
+        mustIncludeOkStrict,
+        badWords: Array.from(new Set(bad)),
+      },
     });
 
     process.stdout.write(`.`);
@@ -140,9 +247,28 @@ async function main() {
     summary: {
       brandHitRate: brandTotal ? brandHit / brandTotal : null,
       categoryHitRate: catTotal ? catHit / catTotal : null,
+
+      materialHitRate: materialTotal ? materialHit / materialTotal : null,
+      colorHitRate: colorTotal ? colorHit / colorTotal : null,
+      patternHitRate: patternTotal ? patternHit / patternTotal : null,
+      silhouetteHitRate: silhouetteTotal ? silhouetteHit / silhouetteTotal : null,
+
+      mustIncludeHitRateBroad: mustIncTotal ? mustIncHitBroad / mustIncTotal : null,
+      mustIncludeHitRateExact: mustIncTotal ? mustIncHitExact / mustIncTotal : null,
+      mustIncludeHitRateStrict: mustIncTotal ? mustIncHitStrict / mustIncTotal : null,
+
       strictAuthRate: strictTotal ? strictHasAuth / strictTotal : null,
       badWordRows: badWordCount,
-      totals: { brandTotal, catTotal, strictTotal },
+      totals: {
+        brandTotal,
+        catTotal,
+        materialTotal,
+        colorTotal,
+        patternTotal,
+        silhouetteTotal,
+        mustIncTotal,
+        strictTotal,
+      },
     },
     details,
   };
