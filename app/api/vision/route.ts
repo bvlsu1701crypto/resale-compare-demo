@@ -58,6 +58,52 @@ function normalizeColor(raw: any): string | null {
   return s;
 }
 
+const BRAND_ALLOWLIST = new Set([
+  "dior",
+  "christian dior",
+  "chanel",
+  "gucci",
+  "louis vuitton",
+  "prada",
+  "balenciaga",
+  "loewe",
+  "valentino",
+  "maison margiela",
+  "mm6",
+  "mm6 maison margiela",
+  "comme des garcons",
+  "alexander mcqueen",
+  "adidas",
+  "onitsuka tiger",
+  "chloe",
+]);
+
+function normalizeBrand(raw: any): string | null {
+  const s = String(raw || "").toLowerCase().trim();
+  if (!s) return null;
+  // normalize common variants
+  const v = s
+    .replace(/\./g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (v === "lv") return "louis vuitton";
+  if (v === "christian dior") return "christian dior";
+  if (v === "dior") return "dior";
+  if (v === "mm6") return "mm6";
+  if (v === "mm6 maison margiela") return "mm6 maison margiela";
+  if (v === "maison margiela") return "maison margiela";
+  if (v === "comme des garcons") return "comme des garcons";
+  return v;
+}
+
+function acceptBrand(raw: any): string | null {
+  const b = normalizeBrand(raw);
+  if (!b) return null;
+  // Only accept from allowlist to avoid OCR hallucinations like "SPACKHAMER"
+  if (BRAND_ALLOWLIST.has(b)) return b;
+  return null;
+}
+
 function normalizeFactsForQuery(facts: any) {
   const color = normalizeColor(facts?.color);
   // If cues strongly indicate multicolor, prefer multicolor
@@ -65,7 +111,7 @@ function normalizeFactsForQuery(facts: any) {
   const pattern = String(facts?.pattern || "").toLowerCase();
   const visibleText = Array.isArray(facts?.visibleText) ? facts.visibleText.join(" ").toLowerCase() : "";
 
-  let brand = facts?.brand;
+  let brand = acceptBrand(facts?.brand);
 
   const combinedSignals = `${visibleText} ${pattern} ${cues}`;
 
@@ -90,7 +136,7 @@ function normalizeFactsForQuery(facts: any) {
     ];
     for (const c of candidates) {
       if (combinedSignals.includes(c)) {
-        brand = c === "lv" ? "louis vuitton" : c;
+        brand = acceptBrand(c === "lv" ? "louis vuitton" : c);
         break;
       }
     }
@@ -99,7 +145,7 @@ function normalizeFactsForQuery(facts: any) {
   // Demo-only heuristic: some monogram + multicolor stripe style often indicates Dior.
   // Keep confidence controlled elsewhere; this is only to improve search usefulness.
   if (!brand && /monogram/.test(pattern) && /multi|rainbow|stripe/.test(`${pattern} ${cues}`)) {
-    brand = "dior";
+    brand = acceptBrand("dior");
   }
 
   return {
