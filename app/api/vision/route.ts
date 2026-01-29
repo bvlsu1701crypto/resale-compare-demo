@@ -51,7 +51,6 @@ function safeJsonParse(s: string) {
 
 async function callVisionJSON(args: {
   dataUrl: string;
-  userHint: string;
   prompt: string;
   model?: string;
 }) {
@@ -65,6 +64,24 @@ async function callVisionJSON(args: {
           { type: "input_text", text: args.prompt },
           { type: "input_image", image_url: args.dataUrl },
         ],
+      },
+    ] as any,
+  });
+
+  const out = resp.output_text?.trim() || "";
+  const json = safeJsonParse(out);
+  if (!json) throw new Error(`Non-JSON output from model (${model})`);
+  return json;
+}
+
+async function callTextJSON(args: { prompt: string; model?: string }) {
+  const model = args.model ?? "gpt-4.1-mini";
+  const resp = await client.responses.create({
+    model,
+    input: [
+      {
+        role: "user",
+        content: [{ type: "input_text", text: args.prompt }],
       },
     ] as any,
   });
@@ -110,9 +127,11 @@ Rules:
 `.trim();
 }
 
-function buildPromptB(userHint: string) {
+function buildPromptBFromFacts(args: { userHint: string; facts: any }) {
+  const { userHint, facts } = args;
   return `
 You generate search-friendly queries for second-hand marketplaces.
+You will be given STRUCTURED FACTS extracted from an image. Use ONLY those facts.
 Return ONLY JSON matching the schema below.
 
 Schema:
@@ -126,13 +145,17 @@ Schema:
   "assumptions": string[]
 }
 
+FACTS (do not add new facts):
+${JSON.stringify(facts, null, 2)}
+
 Rules:
 - Queries must be short and optimized for marketplace search.
-- broad: maximize recall; avoid uncertain model names.
-- exact: include model ONLY if clearly confident.
-- strict: add "authentic genuine" and avoid replica-ish terms.
+- broad: maximize recall; include category + (color/material) when present; avoid uncertain model names.
+- exact: include model ONLY if confidence is high and model is present.
+- strict: add "authentic genuine".
 - Avoid: replica, dupe, inspired, style, lookalike.
 - Prefer lowercase, spaces, no punctuation.
+- If color is multi/various, use "multicolor".
 - Optional user hint text: ${userHint ? JSON.stringify(userHint) : "(none)"}.
 `.trim();
 }
@@ -259,12 +282,28 @@ export async function POST(req: Request) {
       return NextResponse.json({ ...cached.value, _cached: true });
     }
 
-    // Run ensemble in parallel
-    const [a, b, c] = await Promise.all([
-      callVisionJSON({ dataUrl, userHint: userText, prompt: buildPromptA(userText) }),
-      callVisionJSON({ dataUrl, userHint: userText, prompt: buildPromptB(userText) }),
-      callVisionJSON({ dataUrl, userHint: userText, prompt: buildPromptC() }),
+    // Run A + C first (both look at the image)
+    const [a, c] = await Promise.all([
+      callVisionJSON({ dataUrl, prompt: buildPromptA(userText) }),
+      callVisionJSON({ dataUrl, prompt: buildPromptC() }),
     ]);
+
+    // Derive facts for query generation (B)
+    const facts = {
+      itemType: (typeof a?.itemType === "string" && a.itemType) || "other",
+      category: (typeof a?.category === "string" && a.category) || "unknown",
+      brand: pickFirstNonEmpty(a?.brand, c?.bestBrandGuess),
+      model: typeof a?.model === "string" ? a.model : null,
+      color: typeof a?.color === "string" ? a.color : null,
+      material: typeof a?.material === "string" ? a.material : null,
+      pattern: typeof a?.pattern === "string" ? a.pattern : null,
+      keyVisualCues: Array.isArray(a?.keyVisualCues) ? a.keyVisualCues : [],
+      visibleText: Array.isArray(c?.visibleText) ? c.visibleText : [],
+      confidence: a?.confidence,
+    };
+
+    // B uses only facts (this is what improves color/material/silhouette inclusion in queries)
+    const b = await callTextJSON({ prompt: buildPromptBFromFacts({ userHint: userText, facts }) });
 
     const merged = mergeEnsemble(a, b, c);
     cache.set(key, { ts: now(), value: merged });
