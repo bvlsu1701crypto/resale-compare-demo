@@ -2,6 +2,21 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+### Environment variables
+
+Create `.env.local` (or set these in Vercel) with:
+
+```bash
+# Required for eBay Browse API (recommended)
+EBAY_CLIENT_ID=...
+EBAY_CLIENT_SECRET=...
+# Optional: defaults to EBAY_GB
+EBAY_MARKETPLACE_ID=EBAY_GB
+
+# If you use the vision demo
+OPENAI_API_KEY=...
+```
+
 First, run the development server:
 
 ```bash
@@ -31,6 +46,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 ## Deploy on Vercel
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+1) Push this repo to GitHub
+2) Import into Vercel
+3) Set environment variables in Vercel:
+   - `EBAY_CLIENT_ID`
+   - `EBAY_CLIENT_SECRET`
+   - `EBAY_MARKETPLACE_ID` (optional, e.g. `EBAY_GB`)
+   - `OPENAI_API_KEY` (only if you need the vision demo)
+4) Deploy → you’ll get a shareable test link
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Notes:
+- The server route `GET /api/search?q=...` calls eBay Browse API when credentials exist; otherwise it falls back to HTML scraping.
