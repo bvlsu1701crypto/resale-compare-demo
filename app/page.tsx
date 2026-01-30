@@ -226,6 +226,45 @@ export default function Page() {
     }
   }
 
+  async function downscaleImage(file: File): Promise<File> {
+    // Reduce large images to avoid oversized data URLs / model limits.
+    // Target: max 1600px on the long edge, JPEG quality 0.85.
+    const MAX_EDGE = 1600;
+    const QUALITY = 0.85;
+
+    // If already small-ish, keep as-is.
+    if (file.size <= 2_000_000) return file;
+
+    const bmp = await createImageBitmap(file);
+    const w = bmp.width;
+    const h = bmp.height;
+
+    const longEdge = Math.max(w, h);
+    const scale = longEdge > MAX_EDGE ? MAX_EDGE / longEdge : 1;
+
+    const outW = Math.max(1, Math.round(w * scale));
+    const outH = Math.max(1, Math.round(h * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+
+    ctx.drawImage(bmp, 0, 0, outW, outH);
+
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/jpeg", QUALITY)
+    );
+
+    if (!blob) return file;
+
+    return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", {
+      type: "image/jpeg",
+      lastModified: Date.now(),
+    });
+  }
+
   function makeInitialChipsFromVision(v: any): Chip[] {
     // Works with the schema we asked for; if some fields missing, skip them.
     const category = cleanToken(v?.category || v?.itemType);
@@ -310,7 +349,8 @@ export default function Page() {
       }
 
       const form = new FormData();
-      form.append("image", imageFile);
+      const uploadFile = await downscaleImage(imageFile);
+      form.append("image", uploadFile);
       form.append("text", normalizeSpaces(text));
 
       const res = await fetch("/api/vision", { method: "POST", body: form });
