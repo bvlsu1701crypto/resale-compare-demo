@@ -210,82 +210,18 @@ async function searchEbay(q: string): Promise<Listing[]> {
   }
 }
 
-/**
- * Etsy: parse JSON-LD ItemList if present (most stable), else fallback to listing URLs only.
- */
-async function searchEtsy(q: string): Promise<Listing[]> {
-  const searchUrl = `https://www.etsy.com/search?q=${encodeURIComponent(q)}`;
-  const html = await fetchHtml(searchUrl);
-
-  // Try JSON-LD blocks first
-  const scripts = [...html.matchAll(/<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/g)]
-    .map((m) => m[1])
-    .filter(Boolean);
-
-  for (const s of scripts) {
-    try {
-      const json = JSON.parse(s);
-      // Sometimes it's an array of JSON-LD entries
-      const entries = Array.isArray(json) ? json : [json];
-
-      for (const entry of entries) {
-        if (entry && entry["@type"] === "ItemList" && Array.isArray(entry.itemListElement)) {
-          const out: Listing[] = [];
-          for (const el of entry.itemListElement) {
-            const item = el?.item;
-            const url = item?.url;
-            const image = Array.isArray(item?.image) ? item.image[0] : item?.image;
-            const offers = item?.offers;
-            const price = offers?.price != null ? Number(offers.price) : null;
-            const currency = offers?.priceCurrency as Listing["currency"] | undefined;
-
-            if (typeof url === "string") {
-              out.push({
-                source: "etsy",
-                url,
-                image: typeof image === "string" ? image : undefined,
-                price: Number.isFinite(price as number) ? (price as number) : undefined,
-                currency,
-                fee: 0,
-                shipping: 0,
-              });
-            }
-            if (out.length >= 8) break;
-          }
-
-          if (out.length > 0) return out;
-        }
-      }
-    } catch {
-      // ignore and continue
-    }
-  }
-
-  // Fallback: listing URLs only
-  const urls = Array.from(
-    new Set(
-      [...html.matchAll(/href="(https:\/\/www\.etsy\.com\/listing\/\d+\/[^"?]+)[^"]*"/g)]
-        .map((m) => m[1])
-        .filter(Boolean)
-    )
-  ).slice(0, 8);
-
-  if (urls.length === 0) return [{ source: "etsy", url: searchUrl }];
-  return urls.map((u) => ({ source: "etsy", url: u, fee: 0, shipping: 0 }));
-}
-
+// Etsy scraping removed for deploy stability (links only).
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url);
   const q = (searchParams.get("q") || "").trim();
   if (!q) return NextResponse.json({ q, results: [] });
 
-  const [ebayRes, etsyRes] = await Promise.allSettled([searchEbay(q), searchEtsy(q)]);
+  const ebayRes = await Promise.allSettled([searchEbay(q)]);
 
   const results: Listing[] = [];
-  if (ebayRes.status === "fulfilled") results.push(...ebayRes.value);
-  if (etsyRes.status === "fulfilled") results.push(...etsyRes.value);
+  if (ebayRes[0].status === "fulfilled") results.push(...ebayRes[0].value);
 
-  // Add other platforms as search links
+  // Add other platforms as search links (no scraping)
   results.push(...makeSearchLinks(q));
 
   // Convert all numeric prices into EUR for demo consistency
