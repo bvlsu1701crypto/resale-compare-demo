@@ -150,14 +150,21 @@ async function searchEbayViaApi(q: string): Promise<Listing[]> {
     return [{ source: "ebay", url: searchUrl }];
   }
 
-  return items.slice(0, 8).map((it) => {
+  const mapped = items.slice(0, 8).map((it) => {
     const priceVal = it.price?.value != null ? Number(it.price.value) : undefined;
     const currency = it.price?.currency as Listing["currency"] | undefined;
 
+    const urlOut =
+      typeof it.itemWebUrl === "string"
+        ? it.itemWebUrl
+        : typeof it.itemHref === "string"
+          ? it.itemHref
+          : null;
+
     return {
-      source: "ebay",
+      source: "ebay" as const,
       title: typeof it.title === "string" ? cleanText(it.title) : undefined,
-      url: typeof it.itemWebUrl === "string" ? it.itemWebUrl : (it.itemHref as string | undefined),
+      url: urlOut,
       image: typeof it.image?.imageUrl === "string" ? it.image.imageUrl : undefined,
       price: Number.isFinite(priceVal as number) ? (priceVal as number) : undefined,
       currency: currency ?? undefined,
@@ -165,6 +172,16 @@ async function searchEbayViaApi(q: string): Promise<Listing[]> {
       shipping: 0,
     };
   });
+
+  // Ensure url is always present (required by Listing)
+  const out = mapped.flatMap((x) => {
+    if (typeof x.url !== "string" || x.url.length === 0) return [];
+    const { url, ...rest } = x;
+    const listing: Listing = { ...rest, url };
+    return [listing];
+  });
+
+  return out;
 }
 
 async function searchEbayViaHtml(q: string): Promise<Listing[]> {
