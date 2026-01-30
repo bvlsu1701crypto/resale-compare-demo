@@ -7,7 +7,11 @@ import { ICONIC_BAGS_TOP20 } from "@/app/lib/iconicCatalog";
 
 export const runtime = "nodejs";
 
-const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+function getOpenAIClient() {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return null;
+  return new OpenAI({ apiKey });
+}
 
 // --- Simple in-memory cache (dev-friendly) ---
 // Keyed by sha256(imageBytes)+hint, to avoid re-paying while iterating.
@@ -275,6 +279,11 @@ async function callVisionJSON(args: {
   prompt: string;
   model?: string;
 }) {
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+
   const model = args.model ?? "gpt-4.1-mini";
   const resp = await client.responses.create({
     model,
@@ -473,6 +482,11 @@ function postprocessQueries(facts: any, b: any) {
 }
 
 async function callTextJSON(args: { prompt: string; model?: string }) {
+  const client = getOpenAIClient();
+  if (!client) {
+    throw new Error("OPENAI_API_KEY is not set");
+  }
+
   const model = args.model ?? "gpt-4.1-mini";
   const resp = await client.responses.create({
     model,
