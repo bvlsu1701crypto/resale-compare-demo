@@ -212,6 +212,13 @@ export default function DetailPage() {
         <h1 className="font-display text-[28px] leading-tight text-brand-900">
           {lang === "zh" ? "关键词" : "Your Key Word"}
         </h1>
+
+        <div className="mt-1 text-xs font-semibold text-zinc-500">
+          {lang === "zh"
+            ? "说明：我们不抓取商品数据，只生成更好的搜索词，并跳转到平台搜索。"
+            : "Note: We don’t scrape listings. We generate better search terms and jump to marketplace search."}
+        </div>
+
         {lang === "zh" && (
           <div className="mt-1 text-xs font-semibold text-zinc-500">
             提示：为方便跨平台搜索，生成的关键词默认使用英文。
