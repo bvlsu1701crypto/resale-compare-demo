@@ -29,8 +29,12 @@ async function copyToClipboard(s: string) {
 
 type CropMode = "original" | "center" | "auto";
 
-async function prepareCroppedImage(args: { file: File; mode: CropMode }): Promise<File> {
-  const { file, mode } = args;
+async function prepareCroppedImage(args: {
+  file: File;
+  mode: CropMode;
+  bbox?: { x: number; y: number; w: number; h: number } | null;
+}): Promise<File> {
+  const { file, mode, bbox } = args;
 
   // Safari compatibility
   if (typeof (globalThis as any).createImageBitmap !== "function") return file;
@@ -59,6 +63,25 @@ async function prepareCroppedImage(args: { file: File; mode: CropMode }): Promis
     // clamp
     sy = Math.max(0, Math.min(sy, bmp.height - size));
 
+    sw = size;
+    sh = size;
+  }
+
+  // If vision provides bbox, auto mode uses bbox-based crop (square with padding)
+  if (mode === "auto" && bbox && bbox.w > 0 && bbox.h > 0) { 
+    const cx = (bbox.x + bbox.w / 2) * bmp.width;
+    const cy = (bbox.y + bbox.h / 2) * bmp.height;
+    const bw = bbox.w * bmp.width;
+    const bh = bbox.h * bmp.height;
+
+    const pad = 1.25;
+    const size = Math.min(Math.max(bw, bh) * pad, Math.min(bmp.width, bmp.height));
+
+    const left = Math.round(cx - size / 2);
+    const top = Math.round(cy - size / 2);
+
+    sx = Math.max(0, Math.min(left, bmp.width - size));
+    sy = Math.max(0, Math.min(top, bmp.height - size));
     sw = size;
     sh = size;
   }
@@ -158,10 +181,11 @@ export default function DetailPage() {
 
     setDownloading(true);
     try {
+      const bbox = vision?.primaryObjectBBox ?? null;
       const out =
         kind === "original"
-          ? await prepareCroppedImage({ file: imageFile, mode: "original" })
-          : await prepareCroppedImage({ file: imageFile, mode: cropMode });
+          ? await prepareCroppedImage({ file: imageFile, mode: "original", bbox })
+          : await prepareCroppedImage({ file: imageFile, mode: cropMode, bbox });
 
       await downloadFile(out);
     } finally {

@@ -527,11 +527,15 @@ Schema:
   "pattern": string|null,
   "keyVisualCues": string[],
   "confidence": "high"|"medium"|"low",
+  "primaryObjectBBox": {"x": number, "y": number, "w": number, "h": number} | null,
   "notes": string|null
 }
 
 Rules:
 - Prefer NOT to hallucinate brand or model.
+- primaryObjectBBox: if you can identify the main item in the image, return a tight bounding box around the primary item.
+  - Coordinates must be NORMALIZED 0..1 relative to the full image: x,y = top-left; w,h = width/height.
+  - If unsure, return null.
 - Coach special-case: if a repeating "signature C" pattern is clearly visible, set pattern="signature c" (not just generic "monogram"), add keyVisualCues including "signature c", and you may set brand="coach" with confidence="medium".
 - HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, mcqueen skull hardware, balenciaga city bag cues, margiela four stitches, coach signature c), you may set brand as a best-effort guess (confidence must be medium/low).
 - If the brand name/logo text is clearly visible, set brand.
@@ -658,6 +662,22 @@ function mergeEnsemble(a: any, b: any, c: any) {
 
   const model = typeof a?.model === "string" ? a.model : null;
   const color = typeof a?.color === "string" ? a.color : null;
+
+  // primary object bbox (normalized 0..1)
+  const primaryObjectBBox =
+    a?.primaryObjectBBox &&
+    typeof a.primaryObjectBBox === "object" &&
+    typeof a.primaryObjectBBox.x === "number" &&
+    typeof a.primaryObjectBBox.y === "number" &&
+    typeof a.primaryObjectBBox.w === "number" &&
+    typeof a.primaryObjectBBox.h === "number"
+      ? {
+          x: Math.max(0, Math.min(1, a.primaryObjectBBox.x)),
+          y: Math.max(0, Math.min(1, a.primaryObjectBBox.y)),
+          w: Math.max(0, Math.min(1, a.primaryObjectBBox.w)),
+          h: Math.max(0, Math.min(1, a.primaryObjectBBox.h)),
+        }
+      : null;
   const material = typeof a?.material === "string" ? a.material : null;
   const pattern = typeof a?.pattern === "string" ? a.pattern : null;
 
@@ -716,6 +736,7 @@ function mergeEnsemble(a: any, b: any, c: any) {
     pattern,
     keyVisualCues: Array.isArray(cues) ? cues : [],
     confidence,
+    primaryObjectBBox,
     keywords,
     suggestedQueries: {
       broad: normalizeQuery(broad || fallbackBroad || keywords.slice(0, 6).join(" ")),
