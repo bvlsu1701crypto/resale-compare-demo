@@ -27,6 +27,8 @@ export default function DetailPage() {
   const setLang = useSearchStore((s) => s.setLang);
   const text = useSearchStore((s) => s.text);
   const imageFile = useSearchStore((s) => s.imageFile);
+
+  const langSwitchLabel = lang === "en" ? "切换中文" : "Change to English";
   const loading = useSearchStore((s) => s.loading);
   const err = useSearchStore((s) => s.err);
   const chips = useSearchStore((s) => s.chips);
@@ -62,14 +64,7 @@ export default function DetailPage() {
         <Link href="/" className="text-sm font-semibold text-zinc-600">
           ← Back
         </Link>
-
-        <button
-          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm font-extrabold text-zinc-700"
-          onClick={() => setLang(lang === "en" ? "zh" : "en")}
-          aria-label="Switch language"
-        >
-          {lang === "en" ? "中" : "EN"}
-        </button>
+        <div />
       </div>
 
       <header className="mb-4">
@@ -235,7 +230,16 @@ export default function DetailPage() {
         })}
       </section>
 
-      <footer className="mt-8 text-center font-display text-xl text-brand-900">PreloveFinder</footer>
+      <div className="mt-8 text-center">
+        <button
+          className="text-sm font-semibold text-brand-900 underline underline-offset-4"
+          onClick={() => setLang(lang === "en" ? "zh" : "en")}
+        >
+          {langSwitchLabel}
+        </button>
+
+        <div className="mt-3 font-display text-xl text-brand-900">PreloveFinder</div>
+      </div>
     </main>
   );
 }
