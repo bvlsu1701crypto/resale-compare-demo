@@ -64,7 +64,12 @@ export default function DetailPage() {
         <Link href="/" className="text-sm font-semibold text-zinc-600">
           ← Back
         </Link>
-        <div />
+        <button
+          className="text-sm font-semibold text-brand-900 underline underline-offset-4"
+          onClick={() => setLang(lang === "en" ? "zh" : "en")}
+        >
+          {langSwitchLabel}
+        </button>
       </div>
 
       <header className="mb-4">
@@ -230,16 +235,7 @@ export default function DetailPage() {
         })}
       </section>
 
-      <div className="mt-8 text-center">
-        <button
-          className="text-sm font-semibold text-brand-900 underline underline-offset-4"
-          onClick={() => setLang(lang === "en" ? "zh" : "en")}
-        >
-          {langSwitchLabel}
-        </button>
-
-        <div className="mt-3 font-display text-xl text-brand-900">PreloveFinder</div>
-      </div>
+      <footer className="mt-8 text-center font-display text-xl text-brand-900">PreloveFinder</footer>
     </main>
   );
 }
