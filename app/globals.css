@@ -3,6 +3,10 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* PreloveFinder theme (placeholder, align with Figma later) */
+  --pf-brand: #f28a00;
+  --pf-brand-900: #b45c00;
 }
 
 @theme inline {
@@ -10,6 +14,9 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --color-brand-500: var(--pf-brand);
+  --color-brand-900: var(--pf-brand-900);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -22,5 +29,9 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* A display-ish font hook for the Figma-like headings (uses system serif for now) */
+.font-display {
+  font-family: ui-serif, Georgia, "Times New Roman", Times, serif;
 }
