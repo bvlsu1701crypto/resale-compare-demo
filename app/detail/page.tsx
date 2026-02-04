@@ -176,7 +176,7 @@ export default function DetailPage() {
           }}
           disabled={!query || loading}
         >
-          COPY
+          {lang === "zh" ? "复制" : "COPY"}
         </button>
 
         {err && (
