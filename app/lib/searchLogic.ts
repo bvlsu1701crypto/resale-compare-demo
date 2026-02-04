@@ -183,8 +183,21 @@ export function buildQuery(args: {
     );
   }
 
-  // broad / chips: conservative query to reduce "wrong bag type" failures.
-  return normalizeSpaces([iconicLabel, brand, conservativeCategory, color, material, ...broadChipTexts]
+  // broad / chips: conservative base query to reduce "wrong bag type" failures.
+  const baseBroad = [iconicLabel, brand, conservativeCategory, color, material, ...broadChipTexts]
     .filter(Boolean)
-    .join(" "));
+    .join(" ");
+
+  // IMPORTANT: if the user explicitly turns on chips, they must appear in the query.
+  const onAll = chips.filter((c) => c.on).map((c) => c.text);
+
+  const tokens = uniq(
+    normalizeSpaces([baseBroad, ...onAll].join(" "))
+      .split(" ")
+      .map((x) => x.trim())
+      .filter(Boolean)
+  );
+
+  return normalizeSpaces(tokens.join(" "));
 }
+

@@ -26,6 +26,10 @@ type SearchState = {
   chips: Chip[];
   strategy: Strategy;
 
+  // query editing
+  queryOverride: string;
+  queryDirty: boolean;
+
   // actions
   setLang: (lang: Lang) => void;
   setText: (text: string) => void;
@@ -34,6 +38,9 @@ type SearchState = {
   toggleChip: (id: string) => void;
   deleteChip: (id: string) => void;
   resetOutputs: () => void;
+
+  setQueryOverride: (q: string) => void;
+  clearQueryOverride: () => void;
 
   generate: () => Promise<void>;
   activeQuery: () => string;
@@ -158,6 +165,9 @@ export const useSearchStore = create<SearchState>()(
       chips: [],
       strategy: "broad",
 
+      queryOverride: "",
+      queryDirty: false,
+
       setLang: (lang) => set({ lang }),
       setText: (text) => set({ text }),
       setImageFile: (imageFile) => set({ imageFile }),
@@ -165,11 +175,24 @@ export const useSearchStore = create<SearchState>()(
       toggleChip: (id) =>
         set((s) => ({ chips: s.chips.map((c) => (c.id === id ? { ...c, on: !c.on } : c)) })),
       deleteChip: (id) => set((s) => ({ chips: s.chips.filter((c) => c.id !== id) })),
-      resetOutputs: () => set({ err: null, vision: null, chips: [], strategy: "broad", loading: false }),
+      resetOutputs: () =>
+        set({
+          err: null,
+          vision: null,
+          chips: [],
+          strategy: "broad",
+          loading: false,
+          queryOverride: "",
+          queryDirty: false,
+        }),
+
+      setQueryOverride: (q) => set({ queryOverride: q, queryDirty: true }),
+      clearQueryOverride: () => set({ queryOverride: "", queryDirty: false }),
 
       activeQuery: () => {
-        const { chips, strategy, vision } = get();
-        return buildQuery({ kind: strategy, chips, vision });
+        const { chips, strategy, vision, queryOverride, queryDirty } = get();
+        const auto = buildQuery({ kind: strategy, chips, vision });
+        return queryDirty ? queryOverride : auto;
       },
 
       generate: async () => {
@@ -195,7 +218,7 @@ export const useSearchStore = create<SearchState>()(
                     { id: "fallback-1-bag", text: "bag", on: true, kind: "fallback" },
                   ];
 
-            set({ vision: null, chips: base, strategy: "broad" });
+            set({ vision: null, chips: base, strategy: "broad", queryOverride: "", queryDirty: false });
             return;
           }
 
@@ -215,6 +238,8 @@ export const useSearchStore = create<SearchState>()(
             vision: data,
             chips: makeInitialChipsFromVision(data, text),
             strategy: "broad",
+            queryOverride: "",
+            queryDirty: false,
           });
         } catch (e: any) {
           set({ err: e?.message || "Generate failed" });
@@ -238,6 +263,8 @@ export const useSearchStore = create<SearchState>()(
         vision: s.vision,
         chips: s.chips,
         strategy: s.strategy,
+        queryOverride: s.queryOverride,
+        queryDirty: s.queryDirty,
       }),
     }
   )

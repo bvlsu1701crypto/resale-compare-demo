@@ -138,6 +138,10 @@ export default function DetailPage() {
   const vision = useSearchStore((s) => s.vision);
   const strategy = useSearchStore((s) => s.strategy);
   const setStrategy = useSearchStore((s) => s.setStrategy);
+  const queryDirty = useSearchStore((s) => s.queryDirty);
+  const queryOverride = useSearchStore((s) => s.queryOverride);
+  const setQueryOverride = useSearchStore((s) => s.setQueryOverride);
+  const clearQueryOverride = useSearchStore((s) => s.clearQueryOverride);
   const toggleChip = useSearchStore((s) => s.toggleChip);
   const deleteChip = useSearchStore((s) => s.deleteChip);
   const generate = useSearchStore((s) => s.generate);
@@ -179,13 +183,22 @@ export default function DetailPage() {
     }
   }, [chips.length, imageFile, text, loading, generate]);
 
-  const query = buildQuery({ kind: strategy, chips, vision });
+  const autoQuery = buildQuery({ kind: strategy, chips, vision });
+  const query = queryDirty ? queryOverride : autoQuery;
 
   useEffect(() => {
     // Keep bestQuery defaulted to the current auto query unless user edits it.
     if (!bestQuery) setBestQuery(query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  useEffect(() => {
+    // If user hasn't manually edited query, keep override synced.
+    if (!queryDirty) {
+      // ensure the displayed query follows chips/strategy
+      // (query itself already uses autoQuery in this branch)
+    }
+  }, [autoQuery, queryDirty]);
 
   async function onDownloadImage(kind: "cropped" | "original") {
     if (!imageFile) {
@@ -370,7 +383,7 @@ export default function DetailPage() {
           </div>
 
           <div className="text-xs font-semibold text-zinc-500">
-            {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {query || "—"}
+            {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {autoQuery || "—"}
           </div>
 
           <input
@@ -484,15 +497,40 @@ export default function DetailPage() {
       {/* Query */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词" : "Query"}</div>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm font-semibold text-zinc-900">
-          {loading ? (
-            <div className="flex items-center gap-2">
-              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-brand-500" />
-              <span>Generating…</span>
-            </div>
-          ) : (
-            query || "—"
+        <textarea
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm font-semibold text-zinc-900"
+          value={loading ? "" : query}
+          onChange={(e) => setQueryOverride(e.target.value)}
+          placeholder={loading ? "Generating…" : ""}
+          rows={3}
+          readOnly={loading}
+        />
+
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-extrabold text-white disabled:opacity-60"
+            onClick={async () => {
+              await copyToClipboard(query);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1200);
+            }}
+            disabled={!query || loading}
+            type="button"
+          >
+            {lang === "zh" ? "复制" : "COPY"}
+          </button>
+
+          {queryDirty && (
+            <button
+              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-extrabold text-zinc-700"
+              onClick={() => clearQueryOverride()}
+              type="button"
+            >
+              {lang === "zh" ? "重置" : "Reset"}
+            </button>
           )}
+
+          {copied && <span className="text-xs font-semibold text-emerald-600">Copied</span>}
         </div>
 
         <button
