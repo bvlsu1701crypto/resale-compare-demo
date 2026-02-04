@@ -117,28 +117,42 @@ export function buildQuery(args: {
   const { kind, chips, vision } = args;
 
   // IMPORTANT UX: the "Detected keywords" chips are the source of truth.
-  // Toggling/deleting chips must change the query.
-  const on = chips.filter((c) => c.on).map((c) => c.text);
+  // For broad mode we intentionally keep it conservative to avoid over-filtering.
   const get = (k: string) => chips.find((c) => c.kind === k && c.on)?.text;
 
   // Prefer iconic model when present (it is the most search-useful signal)
   const iconicLabel = cleanToken(vision?.iconicModel?.label);
 
-  const category =
-    get("category") || cleanToken(vision?.category) || cleanToken(vision?.itemType) || "item";
+  const itemType = cleanToken(vision?.itemType);
+  const isBag = itemType === "bag";
+
   const brand = get("brand");
   const model = get("model");
   const color = get("color");
   const material = get("material");
   const pattern = get("pattern");
 
+  const bagType = cleanToken(vision?.bagType) || cleanToken(vision?.category);
+  const bagTypeConfidence = String(vision?.bagTypeConfidence || "");
+
+  const conservativeCategory = isBag ? "bag" : itemType || "item";
+  const exactCategory = isBag && bagTypeConfidence === "high" && bagType && bagType !== "unknown" ? bagType : conservativeCategory;
+
+  // Which chips to include in broad mode (keep recall high)
+  const broadChipTexts = chips
+    .filter((c) => c.on)
+    .filter((c) => ["brand", "color", "material"].includes(String(c.kind || "")))
+    .map((c) => c.text);
+
   if (kind === "strict") {
+    // strict: allow more detail but still avoid forcing bagType if not confident
+    const on = chips.filter((c) => c.on).map((c) => c.text);
     return normalizeSpaces(
       [
         iconicLabel,
         brand,
         model,
-        category,
+        exactCategory,
         color,
         material,
         pattern,
@@ -151,13 +165,16 @@ export function buildQuery(args: {
   }
 
   if (kind === "exact") {
+    const on = chips.filter((c) => c.on).map((c) => c.text);
     return normalizeSpaces(
-      [iconicLabel, brand, model, category, color, material, pattern, ...on]
+      [iconicLabel, brand, model, exactCategory, color, material, pattern, ...on]
         .filter(Boolean)
         .join(" ")
     );
   }
 
-  // broad / chips
-  return normalizeSpaces([iconicLabel, brand, category, color, material, ...on].filter(Boolean).join(" "));
+  // broad / chips: conservative query to reduce "wrong bag type" failures.
+  return normalizeSpaces([iconicLabel, brand, conservativeCategory, color, material, ...broadChipTexts]
+    .filter(Boolean)
+    .join(" "));
 }

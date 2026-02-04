@@ -520,6 +520,8 @@ Schema:
 {
   "itemType": "bag"|"shoes"|"clothing"|"accessory"|"jewelry"|"watch"|"other",
   "category": string, // choose a search-friendly subtype label. Prefer from this bag taxonomy when itemType="bag": boston bag, top handle bag, tote bag, shoulder bag, crossbody bag, hobo bag, bucket bag, clutch. IMPORTANT: treat "bowler bag" as "boston bag" (use the label "boston bag"). Use "unknown" if unclear.
+  "bagType": "boston bag"|"top handle bag"|"tote bag"|"shoulder bag"|"crossbody bag"|"hobo bag"|"bucket bag"|"clutch"|"unknown"|null,
+  "bagTypeConfidence": "high"|"medium"|"low"|null,
   "brand": string|null,
   "model": string|null,
   "color": string|null,
@@ -536,6 +538,9 @@ Rules:
 - primaryObjectBBox: if you can identify the main item in the image, return a tight bounding box around the primary item.
   - Coordinates must be NORMALIZED 0..1 relative to the full image: x,y = top-left; w,h = width/height.
   - If unsure, return null.
+- bagType/bagTypeConfidence: only when itemType="bag".
+  - bagType must be one of the provided taxonomy labels (or "unknown"/null).
+  - bagTypeConfidence must reflect how sure you are about the shape/type.
 - Coach special-case: if a repeating "signature C" pattern is clearly visible, set pattern="signature c" (not just generic "monogram"), add keyVisualCues including "signature c", and you may set brand="coach" with confidence="medium".
 - HOWEVER: if an iconic logo cue is clearly visible (e.g. adidas three stripes, onitsuka tiger stripes, mcqueen skull hardware, balenciaga city bag cues, margiela four stitches, coach signature c), you may set brand as a best-effort guess (confidence must be medium/low).
 - If the brand name/logo text is clearly visible, set brand.
@@ -681,6 +686,12 @@ function mergeEnsemble(a: any, b: any, c: any) {
   const material = typeof a?.material === "string" ? a.material : null;
   const pattern = typeof a?.pattern === "string" ? a.pattern : null;
 
+  const bagType = typeof a?.bagType === "string" ? a.bagType : null;
+  const bagTypeConfidence =
+    typeof a?.bagTypeConfidence === "string" && ["high", "medium", "low"].includes(a.bagTypeConfidence)
+      ? a.bagTypeConfidence
+      : null;
+
   const cues = Array.isArray(a?.keyVisualCues) ? a.keyVisualCues : [];
   const ocrTokens = Array.isArray(c?.visibleText) ? c.visibleText : [];
   const keywordsFromB = Array.isArray(b?.keywords) ? b.keywords : [];
@@ -737,6 +748,8 @@ function mergeEnsemble(a: any, b: any, c: any) {
     keyVisualCues: Array.isArray(cues) ? cues : [],
     confidence,
     primaryObjectBBox,
+    bagType,
+    bagTypeConfidence,
     keywords,
     suggestedQueries: {
       broad: normalizeQuery(broad || fallbackBroad || keywords.slice(0, 6).join(" ")),
