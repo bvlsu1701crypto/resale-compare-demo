@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchStore } from "@/app/store/searchStore";
-import { buildQuery, logoFor, Platform, platformUrl } from "@/app/lib/searchLogic";
+import {
+  buildQuery,
+  logoFor,
+  Platform,
+  platformImageSearchUrl,
+  platformUrl,
+} from "@/app/lib/searchLogic";
 
 const PLATFORMS: { key: Platform; name: string }[] = [
   { key: "ebay", name: "eBay" },
@@ -217,21 +223,42 @@ export default function DetailPage() {
       <section className="grid gap-3">
         {PLATFORMS.map((p) => {
           const url = platformUrl(p.key, query, vision, chips);
+          const imgUrl = platformImageSearchUrl(p.key);
+
           return (
-            <a
+            <div
               key={p.key}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className={`group flex items-center justify-between rounded-2xl border bg-white px-4 py-3 ${p.key === "ebay" ? "border-emerald-300 bg-emerald-50" : "border-emerald-200"}`}
+              className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${p.key === "ebay" ? "border-emerald-300 bg-emerald-50" : "border-emerald-200 bg-white"}`}
             >
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoFor(p.key)} alt={p.name} className="h-7 w-auto" />
                 <div className="text-base font-extrabold text-zinc-900">{p.name}</div>
               </div>
-              <div className="text-lg font-black text-emerald-600">→</div>
-            </a>
+
+              <div className="flex items-center gap-2">
+                {imgUrl && (
+                  <a
+                    href={imgUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-xl border border-brand-500 bg-white px-3 py-2 text-xs font-extrabold text-zinc-900"
+                    title={lang === "zh" ? "打开平台识图入口（需手动上传图片）" : "Open image search entry (manual upload)"}
+                  >
+                    {lang === "zh" ? "识图" : "Image"}
+                  </a>
+                )}
+
+                <a
+                  href={url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white"
+                >
+                  {lang === "zh" ? "文字" : "Text"} <span className="text-sm">→</span>
+                </a>
+              </div>
+            </div>
           );
         })}
       </section>

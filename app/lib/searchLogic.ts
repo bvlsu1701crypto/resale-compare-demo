@@ -88,6 +88,18 @@ export function platformUrl(p: Platform, query: string, vision?: any, chips: Chi
   return "#";
 }
 
+// Best-effort entrypoints for platform visual search (image search).
+// NOTE: Browsers cannot auto-upload the user's local file to another site.
+// This only opens the platform's image-search entry so the user can upload manually.
+export function platformImageSearchUrl(p: Platform): string | null {
+  if (p === "ebay") return "https://www.ebay.co.uk/"; // camera icon in search bar
+  if (p === "vinted") return "https://www.vinted.co.uk/"; // has "Image search" button
+
+  // Most others are app-only or not reliably available on web.
+  return null;
+}
+
+
 export function logoFor(p: Platform) {
   return `/logos/${p}.png`;
 }
