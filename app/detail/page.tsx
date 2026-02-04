@@ -230,10 +230,12 @@ export default function DetailPage() {
               key={p.key}
               className={`flex items-center justify-between rounded-2xl border px-4 py-3 ${p.key === "ebay" ? "border-emerald-300 bg-emerald-50" : "border-emerald-200 bg-white"}`}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-1 items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoFor(p.key)} alt={p.name} className="h-7 w-auto" />
-                <div className="text-base font-extrabold text-zinc-900">{lang === "zh" ? p.nameZh ?? p.name : p.name}</div>
+                <img src={logoFor(p.key)} alt={p.name} className="h-7 w-auto flex-none" />
+                <div className="min-w-0 truncate whitespace-nowrap text-base font-extrabold text-zinc-900">
+                  {lang === "zh" ? p.nameZh ?? p.name : p.name}
+                </div>
               </div>
 
               <div className="flex items-center gap-2">
