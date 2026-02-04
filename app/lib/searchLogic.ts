@@ -1,6 +1,6 @@
 export type Lang = "en" | "zh";
 export type Strategy = "broad" | "exact" | "strict" | "chips";
-export type Platform = "ebay" | "vinted" | "depop" | "vestiaire" | "etsy";
+export type Platform = "ebay" | "vinted" | "depop" | "vestiaire" | "etsy" | "xianyu";
 
 export type Chip = { id: string; text: string; on: boolean; kind?: string };
 
@@ -81,6 +81,10 @@ export function platformUrl(p: Platform, query: string, vision?: any, chips: Chi
   if (p === "depop") return `https://www.depop.com/search/?q=${q}`;
   if (p === "vestiaire") return `https://www.vestiairecollective.com/search/?q=${q}`;
   if (p === "etsy") return `https://www.etsy.com/uk/search?q=${q}`;
+
+  // Xianyu best-effort keyword search (may vary by device/login)
+  if (p === "xianyu") return `https://2.taobao.com/search?q=${q}`;
+
   return "#";
 }
 
