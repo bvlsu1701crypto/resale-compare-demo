@@ -34,9 +34,22 @@ async function notionFetch(path: string, init?: RequestInit) {
   return json;
 }
 
-async function getTitlePropertyName(databaseId: string): Promise<string> {
+async function getDataSourceIdForDatabase(databaseId: string): Promise<string | null> {
   const db = await notionFetch(`/databases/${databaseId}`, { method: "GET" });
-  const props = db?.properties || {};
+  const ds = Array.isArray(db?.data_sources) ? db.data_sources[0] : null;
+  return ds?.id ? String(ds.id) : null;
+}
+
+async function getDataSource(databaseId: string) {
+  const dsId = await getDataSourceIdForDatabase(databaseId);
+  if (!dsId) throw new Error("DATABASE_HAS_NO_DATA_SOURCE");
+  const ds = await notionFetch(`/data_sources/${dsId}`, { method: "GET" });
+  return { dsId, ds };
+}
+
+async function getTitlePropertyName(databaseId: string): Promise<string> {
+  const { ds } = await getDataSource(databaseId);
+  const props = ds?.properties || {};
 
   for (const [name, meta] of Object.entries(props)) {
     if ((meta as any)?.type === "title") return name;
@@ -50,8 +63,8 @@ async function getTitlePropertyName(databaseId: string): Promise<string> {
 
 async function ensureDatabaseSchema(databaseId: string) {
   // Create properties if missing. Safe to call repeatedly.
-  const db = await notionFetch(`/databases/${databaseId}`, { method: "GET" });
-  const props = db?.properties || {};
+  const { dsId, ds } = await getDataSource(databaseId);
+  const props = ds?.properties || {};
 
   const patch: any = { properties: {} };
 
@@ -76,7 +89,7 @@ async function ensureDatabaseSchema(databaseId: string) {
   const hasAny = Object.keys(patch.properties).length > 0;
   if (!hasAny) return;
 
-  await notionFetch(`/databases/${databaseId}`, {
+  await notionFetch(`/data_sources/${dsId}`, {
     method: "PATCH",
     body: JSON.stringify(patch),
   });
