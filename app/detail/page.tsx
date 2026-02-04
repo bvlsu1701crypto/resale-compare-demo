@@ -17,7 +17,7 @@ const PLATFORMS: { key: Platform; name: string }[] = [
   { key: "depop", name: "Depop" },
   { key: "vestiaire", name: "Vestiaire" },
   { key: "etsy", name: "Etsy" },
-  { key: "xianyu", name: "闲鱼" },
+  { key: "xianyu", name: "Xianyu" },
 ];
 
 async function copyToClipboard(s: string) {
