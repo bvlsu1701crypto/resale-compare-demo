@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchStore } from "@/app/store/searchStore";
 import { logoFor, Platform, platformUrl } from "@/app/lib/searchLogic";
@@ -40,15 +40,21 @@ export default function DetailPage() {
 
   const [copied, setCopied] = useState(false);
 
+  const didAutoGenerate = useRef(false);
+
   useEffect(() => {
-    // Auto-generate on first entry if we have inputs but no outputs yet.
-    if (!loading && !err && chips.length === 0 && (imageFile || text.trim())) {
+    // Auto-generate when inputs arrive (navigation can mount before store updates land).
+    if (didAutoGenerate.current) return;
+    if (loading) return;
+    if (chips.length > 0) return;
+
+    if (imageFile || text.trim()) {
+      didAutoGenerate.current = true;
       generate();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [chips.length, imageFile, text, loading, generate]);
 
-  const query = useMemo(() => activeQuery(), [activeQuery]);
+  const query = activeQuery();
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[420px] px-5 py-6">
