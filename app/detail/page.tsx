@@ -110,19 +110,19 @@ export default function DetailPage() {
         <div className="mb-2 text-sm font-semibold text-zinc-700">Query mode</div>
         <div className="grid gap-2">
           <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold text-white ${strategy === "broad" ? "bg-brand-500" : "bg-brand-500/60"}`}
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "broad" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("broad")}
           >
             Broad (best default)
           </button>
           <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold text-white ${strategy === "exact" ? "bg-brand-500" : "bg-brand-500/60"}`}
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "exact" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("exact")}
           >
             Exact (if confident)
           </button>
           <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold text-white ${strategy === "strict" ? "bg-brand-500" : "bg-brand-500/60"}`}
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "strict" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("strict")}
           >
             Strict (authentic only)
@@ -130,7 +130,7 @@ export default function DetailPage() {
 
           {/* Keep prototype-only chips mode but de-emphasize it */}
           <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold text-white ${strategy === "chips" ? "bg-brand-500" : "bg-brand-500/35"}`}
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "chips" ? "bg-brand-500 text-white" : "border border-brand-500/60 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("chips")}
           >
             Chips (advanced)
