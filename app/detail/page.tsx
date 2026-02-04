@@ -62,7 +62,7 @@ export default function DetailPage() {
       {/* Top bar */}
       <div className="mb-4 flex items-center justify-between">
         <Link href="/" className="text-sm font-semibold text-zinc-600">
-          ← Back
+          ← {lang === "zh" ? "返回" : "Back"}
         </Link>
         <button
           className="text-sm font-semibold text-brand-900 underline underline-offset-4"
@@ -93,7 +93,7 @@ export default function DetailPage() {
             setTimeout(() => setCopied(false), 1200);
           }}
         >
-          Copy key word
+          {lang === "zh" ? "复制关键词" : "Copy key word"}
         </button>
 
         <button
@@ -101,20 +101,20 @@ export default function DetailPage() {
           onClick={() => {
             // reserved for future: editing keywords/query
             // Keeping behavior minimal to avoid diverging from the prototype.
-            alert("Edit is not implemented yet (UI only). ");
+            alert(lang === "zh" ? "暂未实现编辑功能（仅 UI 占位）。" : "Edit is not implemented yet (UI only). ");
           }}
         >
-          Edit
+          {lang === "zh" ? "编辑" : "Edit"}
         </button>
 
         <button
           className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
           onClick={() => {
             // You said keywords are always English; keep button for parity, no-op for now.
-            alert("Keywords are already English in this prototype.");
+            alert(lang === "zh" ? "为方便跨平台搜索，关键词默认使用英文。" : "Keywords are already English in this prototype.");
           }}
         >
-          Translate key word
+          {lang === "zh" ? "翻译为英文" : "Translate key word"}
         </button>
 
         {copied && <span className="self-center text-xs font-semibold text-emerald-600">Copied</span>}
@@ -122,25 +122,25 @@ export default function DetailPage() {
 
       {/* Query mode */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">Query mode</div>
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词模式" : "Query mode"}</div>
         <div className="grid gap-2">
           <button
             className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "broad" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("broad")}
           >
-            Broad (best default)
+            {lang === "zh" ? "宽泛（推荐）" : "Broad (best default)"}
           </button>
           <button
             className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "exact" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("exact")}
           >
-            Exact (if confident)
+            {lang === "zh" ? "精确（更精确）" : "Exact (if confident)"}
           </button>
           <button
             className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "strict" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("strict")}
           >
-            Strict (authentic only)
+            {lang === "zh" ? "严格（仅正品）" : "Strict (authentic only)"}
           </button>
 
           {/* Keep prototype-only chips mode but de-emphasize it */}
@@ -148,14 +148,14 @@ export default function DetailPage() {
             className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "chips" ? "bg-brand-500 text-white" : "border border-brand-500/60 bg-white text-zinc-900"}`}
             onClick={() => setStrategy("chips")}
           >
-            Chips (advanced)
+            {lang === "zh" ? "关键词选择（高级）" : "Chips (advanced)"}
           </button>
         </div>
       </section>
 
       {/* Query */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">Query</div>
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词" : "Query"}</div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm font-semibold text-zinc-900">
           {loading ? (
             <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export default function DetailPage() {
       {/* Keywords (chips) */}
       {chips.length > 0 && (
         <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-          <div className="mb-2 text-sm font-semibold text-zinc-700">Detected keywords</div>
+          <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "识别到的关键词" : "Detected keywords"}</div>
           <div className="flex flex-wrap gap-2">
             {chips.map((c) => (
               <div
