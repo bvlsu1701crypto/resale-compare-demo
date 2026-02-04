@@ -34,6 +34,20 @@ async function notionFetch(path: string, init?: RequestInit) {
   return json;
 }
 
+async function getTitlePropertyName(databaseId: string): Promise<string> {
+  const db = await notionFetch(`/databases/${databaseId}`, { method: "GET" });
+  const props = db?.properties || {};
+
+  for (const [name, meta] of Object.entries(props)) {
+    if ((meta as any)?.type === "title") return name;
+  }
+
+  // Common fallbacks (English/Chinese)
+  if (props?.Name) return "Name";
+  if (props?.["名称"]) return "名称";
+  return "Name";
+}
+
 async function ensureDatabaseSchema(databaseId: string) {
   // Create properties if missing. Safe to call repeatedly.
   const db = await notionFetch(`/databases/${databaseId}`, { method: "GET" });
@@ -85,12 +99,14 @@ export async function POST(req: Request) {
     const visionJson = body?.visionJson ? String(body.visionJson).slice(0, 2000) : "";
     const notes = body?.notes ? String(body.notes).slice(0, 2000) : "";
 
+    const titleProp = await getTitlePropertyName(databaseId);
+
     const page = await notionFetch(`/pages`, {
       method: "POST",
       body: JSON.stringify({
         parent: { database_id: databaseId },
         properties: {
-          Name: { title: [{ text: { content: name } }] },
+          [titleProp]: { title: [{ text: { content: name } }] },
           Platform: { select: { name: platform } },
           ...(imageUrl ? { "Image URL": { url: imageUrl } } : {}),
           ...(bestQuery ? { "Best Query": { rich_text: [{ text: { content: bestQuery } }] } } : {}),
