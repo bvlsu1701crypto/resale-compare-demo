@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import {
   buildQuery,
   Chip,
@@ -144,85 +145,100 @@ function makeInitialChipsFromVision(v: any, userText: string): Chip[] {
   }));
 }
 
-export const useSearchStore = create<SearchState>((set, get) => ({
-  lang: "en",
-  text: "",
-  imageFile: null,
+export const useSearchStore = create<SearchState>()(
+  persist(
+    (set, get) => ({
+      lang: "en",
+      text: "",
+      imageFile: null,
 
-  loading: false,
-  err: null,
-  vision: null,
-  chips: [],
-  strategy: "broad",
+      loading: false,
+      err: null,
+      vision: null,
+      chips: [],
+      strategy: "broad",
 
-  setLang: (lang) => set({ lang }),
-  setText: (text) => set({ text }),
-  setImageFile: (imageFile) => set({ imageFile }),
-  setStrategy: (strategy) => set({ strategy }),
-  toggleChip: (id) => set((s) => ({ chips: s.chips.map((c) => (c.id === id ? { ...c, on: !c.on } : c)) })),
-  deleteChip: (id) => set((s) => ({ chips: s.chips.filter((c) => c.id !== id) })),
-  resetOutputs: () => set({ err: null, vision: null, chips: [], strategy: "broad", loading: false }),
+      setLang: (lang) => set({ lang }),
+      setText: (text) => set({ text }),
+      setImageFile: (imageFile) => set({ imageFile }),
+      setStrategy: (strategy) => set({ strategy }),
+      toggleChip: (id) =>
+        set((s) => ({ chips: s.chips.map((c) => (c.id === id ? { ...c, on: !c.on } : c)) })),
+      deleteChip: (id) => set((s) => ({ chips: s.chips.filter((c) => c.id !== id) })),
+      resetOutputs: () => set({ err: null, vision: null, chips: [], strategy: "broad", loading: false }),
 
-  activeQuery: () => {
-    const { chips, strategy, vision } = get();
-    return buildQuery({ kind: strategy, chips, vision });
-  },
+      activeQuery: () => {
+        const { chips, strategy, vision } = get();
+        return buildQuery({ kind: strategy, chips, vision });
+      },
 
-  generate: async () => {
-    const { imageFile, text } = get();
+      generate: async () => {
+        const { imageFile, text } = get();
 
-    const startedAt = Date.now();
-    set({ err: null, loading: true });
-    try {
-      // If no image, we still create chips from text (high recall)
-      if (!imageFile) {
-        const words = uniq(
-          normalizeSpaces(text)
-            .split(" ")
-            .map(cleanToken)
-            .filter((w) => w.length >= 3)
-        ).slice(0, 8);
+        const startedAt = Date.now();
+        set({ err: null, loading: true });
+        try {
+          // If no image, we still create chips from text (high recall)
+          if (!imageFile) {
+            const words = uniq(
+              normalizeSpaces(text)
+                .split(" ")
+                .map(cleanToken)
+                .filter((w) => w.length >= 3)
+            ).slice(0, 8);
 
-        const base: Chip[] =
-          words.length > 0
-            ? words.map((w, i) => ({ id: `word-${i}-${w}`, text: w, on: true, kind: "fallback" }))
-            : [
-                { id: "fallback-0-designer", text: "designer", on: true, kind: "fallback" },
-                { id: "fallback-1-bag", text: "bag", on: true, kind: "fallback" },
-              ];
+            const base: Chip[] =
+              words.length > 0
+                ? words.map((w, i) => ({ id: `word-${i}-${w}`, text: w, on: true, kind: "fallback" }))
+                : [
+                    { id: "fallback-0-designer", text: "designer", on: true, kind: "fallback" },
+                    { id: "fallback-1-bag", text: "bag", on: true, kind: "fallback" },
+                  ];
 
-        set({ vision: null, chips: base, strategy: "broad" });
-        return;
-      }
+            set({ vision: null, chips: base, strategy: "broad" });
+            return;
+          }
 
-      const form = new FormData();
-      const uploadFile = await downscaleImage(imageFile);
-      form.append("image", uploadFile);
-      form.append("text", normalizeSpaces(text));
+          const form = new FormData();
+          const uploadFile = await downscaleImage(imageFile);
+          form.append("image", uploadFile);
+          form.append("text", normalizeSpaces(text));
 
-      const res = await fetch("/api/vision", { method: "POST", body: form });
-      const data = await res.json();
+          const res = await fetch("/api/vision", { method: "POST", body: form });
+          const data = await res.json();
 
-      if (!res.ok) {
-        throw new Error(data?.error || "Vision request failed");
-      }
+          if (!res.ok) {
+            throw new Error(data?.error || "Vision request failed");
+          }
 
-      set({
-        vision: data,
-        chips: makeInitialChipsFromVision(data, text),
-        strategy: "broad",
-      });
-    } catch (e: any) {
-      set({ err: e?.message || "Generate failed" });
-    } finally {
-      // Ensure the loading indicator is visible (avoid flicker on fast responses).
-      const MIN_LOADING_MS = 450;
-      const elapsed = Date.now() - startedAt;
-      const remain = MIN_LOADING_MS - elapsed;
-      if (remain > 0) {
-        await new Promise((r) => setTimeout(r, remain));
-      }
-      set({ loading: false });
+          set({
+            vision: data,
+            chips: makeInitialChipsFromVision(data, text),
+            strategy: "broad",
+          });
+        } catch (e: any) {
+          set({ err: e?.message || "Generate failed" });
+        } finally {
+          // Ensure the loading indicator is visible (avoid flicker on fast responses).
+          const MIN_LOADING_MS = 450;
+          const elapsed = Date.now() - startedAt;
+          const remain = MIN_LOADING_MS - elapsed;
+          if (remain > 0) {
+            await new Promise((r) => setTimeout(r, remain));
+          }
+          set({ loading: false });
+        }
+      },
+    }),
+    {
+      name: "prelovefinder-search-v1",
+      partialize: (s) => ({
+        lang: s.lang,
+        text: s.text,
+        vision: s.vision,
+        chips: s.chips,
+        strategy: s.strategy,
+      }),
     }
-  },
-}));
+  )
+);

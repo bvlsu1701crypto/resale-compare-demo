@@ -31,6 +31,7 @@ export default function XianyuImageRedirectPage() {
   const fallbackUrl = platform === "ios" ? iosStore : platform === "android" ? androidStore : webFallback;
 
   const [status, setStatus] = useState("正在尝试打开闲鱼 App…");
+  const backUrl = "/detail";
 
   useEffect(() => {
     const start = Date.now();
@@ -78,6 +79,13 @@ export default function XianyuImageRedirectPage() {
           href={fallbackUrl}
         >
           去下载/网页版
+        </a>
+
+        <a
+          className="rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-center text-sm font-extrabold text-zinc-700"
+          href={backUrl}
+        >
+          返回 PreloveFinder
         </a>
       </div>
     </main>

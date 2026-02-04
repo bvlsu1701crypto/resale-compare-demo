@@ -92,10 +92,12 @@ export function platformUrl(p: Platform, query: string, vision?: any, chips: Chi
 // NOTE: Browsers cannot auto-upload the user's local file to another site.
 // This only opens the platform's image-search entry so the user can upload manually.
 export function platformImageSearchUrl(p: Platform): string | null {
-  if (p === "ebay") return "https://www.ebay.co.uk/"; // camera icon in search bar
-  if (p === "vinted") return "https://www.vinted.co.uk/"; // has "Image search" button
+  // NOTE: We cannot auto-upload a local image to other sites from a browser.
+  // So we open a guided entry page that then jumps to the platform's image-search entry.
+  if (p === "ebay") return "/go/ebay-image";
+  if (p === "vinted") return "/go/vinted-image";
 
-  // Xianyu: best-effort deep link to app; fallback to download/web handled by our redirect page.
+  // Xianyu: deep link to app + fallback handled by our redirect page.
   if (p === "xianyu") return "/go/xianyu-image";
 
   // Most others are app-only or not reliably available on web.
