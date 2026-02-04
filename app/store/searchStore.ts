@@ -41,13 +41,25 @@ type SearchState = {
 async function downscaleImage(file: File): Promise<File> {
   // Reduce large images to avoid oversized data URLs / model limits.
   // Target: max 1600px on the long edge, JPEG quality 0.85.
+  // Must be robust across browsers (some Safari builds lack createImageBitmap).
   const MAX_EDGE = 1600;
   const QUALITY = 0.85;
 
   // If already small-ish, keep as-is.
   if (file.size <= 2_000_000) return file;
 
-  const bmp = await createImageBitmap(file);
+  if (typeof (globalThis as any).createImageBitmap !== "function") {
+    // Fallback: no downscale support, upload original.
+    return file;
+  }
+
+  let bmp: ImageBitmap;
+  try {
+    bmp = await createImageBitmap(file);
+  } catch {
+    return file;
+  }
+
   const w = bmp.width;
   const h = bmp.height;
 
