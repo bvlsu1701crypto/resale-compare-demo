@@ -142,7 +142,14 @@ export default function DetailPage() {
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-2 text-sm font-semibold text-zinc-700">Query</div>
         <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 text-sm font-semibold text-zinc-900">
-          {loading ? "Generating…" : query || "—"}
+          {loading ? (
+            <div className="flex items-center gap-2">
+              <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-brand-500" />
+              <span>Generating…</span>
+            </div>
+          ) : (
+            query || "—"
+          )}
         </div>
 
         <button
