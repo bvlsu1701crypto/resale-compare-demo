@@ -139,9 +139,19 @@ export function buildQuery(args: {
   const exactCategory = isBag && bagTypeConfidence === "high" && bagType && bagType !== "unknown" ? bagType : conservativeCategory;
 
   // Which chips to include in broad mode (keep recall high)
+  // Default: only brand/color/material.
+  // BUT: if user explicitly enables a bag-type/category chip (e.g. "shoulder bag"), include it as an override.
   const broadChipTexts = chips
     .filter((c) => c.on)
-    .filter((c) => ["brand", "color", "material"].includes(String(c.kind || "")))
+    .filter((c) => {
+      const k = String(c.kind || "");
+      if (["brand", "color", "material"].includes(k)) return true;
+
+      const txt = cleanToken(c.text).toLowerCase();
+      if (k === "category" && /\bbag\b/.test(txt)) return true;
+
+      return false;
+    })
     .map((c) => c.text);
 
   if (kind === "strict") {
