@@ -171,6 +171,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   generate: async () => {
     const { imageFile, text } = get();
 
+    const startedAt = Date.now();
     set({ err: null, loading: true });
     try {
       // If no image, we still create chips from text (high recall)
@@ -214,6 +215,13 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     } catch (e: any) {
       set({ err: e?.message || "Generate failed" });
     } finally {
+      // Ensure the loading indicator is visible (avoid flicker on fast responses).
+      const MIN_LOADING_MS = 450;
+      const elapsed = Date.now() - startedAt;
+      const remain = MIN_LOADING_MS - elapsed;
+      if (remain > 0) {
+        await new Promise((r) => setTimeout(r, remain));
+      }
       set({ loading: false });
     }
   },
