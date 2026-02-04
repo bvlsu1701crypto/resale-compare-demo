@@ -24,6 +24,7 @@ async function copyToClipboard(s: string) {
 export default function DetailPage() {
   // Subscribe to each slice explicitly so UI always re-renders when chips/strategy/vision change.
   const lang = useSearchStore((s) => s.lang);
+  const setLang = useSearchStore((s) => s.setLang);
   const text = useSearchStore((s) => s.text);
   const imageFile = useSearchStore((s) => s.imageFile);
   const loading = useSearchStore((s) => s.loading);
@@ -61,11 +62,25 @@ export default function DetailPage() {
         <Link href="/" className="text-sm font-semibold text-zinc-600">
           ← Back
         </Link>
-        <div className="text-sm font-semibold text-zinc-500">{lang.toUpperCase()}</div>
+
+        <button
+          className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-sm font-extrabold text-zinc-700"
+          onClick={() => setLang(lang === "en" ? "zh" : "en")}
+          aria-label="Switch language"
+        >
+          {lang === "en" ? "中" : "EN"}
+        </button>
       </div>
 
       <header className="mb-4">
-        <h1 className="font-display text-[28px] leading-tight text-brand-900">Your Key Word</h1>
+        <h1 className="font-display text-[28px] leading-tight text-brand-900">
+          {lang === "zh" ? "关键词" : "Your Key Word"}
+        </h1>
+        {lang === "zh" && (
+          <div className="mt-1 text-xs font-semibold text-zinc-500">
+            提示：为方便跨平台搜索，生成的关键词默认使用英文。
+          </div>
+        )}
       </header>
 
       {/* Actions */}
