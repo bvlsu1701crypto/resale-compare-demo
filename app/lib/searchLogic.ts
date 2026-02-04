@@ -95,6 +95,9 @@ export function platformImageSearchUrl(p: Platform): string | null {
   if (p === "ebay") return "https://www.ebay.co.uk/"; // camera icon in search bar
   if (p === "vinted") return "https://www.vinted.co.uk/"; // has "Image search" button
 
+  // Xianyu: best-effort deep link to app; fallback to download/web handled by our redirect page.
+  if (p === "xianyu") return "/go/xianyu-image";
+
   // Most others are app-only or not reliably available on web.
   return null;
 }
