@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchStore } from "@/app/store/searchStore";
-import { logoFor, Platform, platformUrl } from "@/app/lib/searchLogic";
+import { buildQuery, logoFor, Platform, platformUrl } from "@/app/lib/searchLogic";
 
 const PLATFORMS: { key: Platform; name: string }[] = [
   { key: "ebay", name: "eBay" },
@@ -22,21 +22,19 @@ async function copyToClipboard(s: string) {
 }
 
 export default function DetailPage() {
-  const {
-    lang,
-    text,
-    imageFile,
-    loading,
-    err,
-    chips,
-    vision,
-    strategy,
-    setStrategy,
-    toggleChip,
-    deleteChip,
-    generate,
-    activeQuery,
-  } = useSearchStore();
+  // Subscribe to each slice explicitly so UI always re-renders when chips/strategy/vision change.
+  const lang = useSearchStore((s) => s.lang);
+  const text = useSearchStore((s) => s.text);
+  const imageFile = useSearchStore((s) => s.imageFile);
+  const loading = useSearchStore((s) => s.loading);
+  const err = useSearchStore((s) => s.err);
+  const chips = useSearchStore((s) => s.chips);
+  const vision = useSearchStore((s) => s.vision);
+  const strategy = useSearchStore((s) => s.strategy);
+  const setStrategy = useSearchStore((s) => s.setStrategy);
+  const toggleChip = useSearchStore((s) => s.toggleChip);
+  const deleteChip = useSearchStore((s) => s.deleteChip);
+  const generate = useSearchStore((s) => s.generate);
 
   const [copied, setCopied] = useState(false);
 
@@ -54,7 +52,7 @@ export default function DetailPage() {
     }
   }, [chips.length, imageFile, text, loading, generate]);
 
-  const query = activeQuery();
+  const query = buildQuery({ kind: strategy, chips, vision });
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-[420px] px-5 py-6">
