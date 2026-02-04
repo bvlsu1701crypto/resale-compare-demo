@@ -11,13 +11,13 @@ import {
   platformUrl,
 } from "@/app/lib/searchLogic";
 
-const PLATFORMS: { key: Platform; name: string }[] = [
+const PLATFORMS: { key: Platform; name: string; nameZh?: string }[] = [
   { key: "ebay", name: "eBay" },
   { key: "vinted", name: "Vinted" },
   { key: "depop", name: "Depop" },
   { key: "vestiaire", name: "Vestiaire" },
   { key: "etsy", name: "Etsy" },
-  { key: "xianyu", name: "Xianyu" },
+  { key: "xianyu", name: "Xianyu", nameZh: "闲鱼" },
 ];
 
 async function copyToClipboard(s: string) {
@@ -233,7 +233,7 @@ export default function DetailPage() {
               <div className="flex items-center gap-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoFor(p.key)} alt={p.name} className="h-7 w-auto" />
-                <div className="text-base font-extrabold text-zinc-900">{p.name}</div>
+                <div className="text-base font-extrabold text-zinc-900">{lang === "zh" ? p.nameZh ?? p.name : p.name}</div>
               </div>
 
               <div className="flex items-center gap-2">
