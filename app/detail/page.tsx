@@ -146,6 +146,14 @@ export default function DetailPage() {
   const [cropMode, setCropMode] = useState<CropMode>("auto");
   const [downloading, setDownloading] = useState(false);
 
+  // Notion logging (dataset)
+  const NOTION_DATABASE_ID = "2fd71368-38d5-8043-8d17-d70ea85ddca1";
+  const [platformTag, setPlatformTag] = useState("eBay UK");
+  const [bestQuery, setBestQuery] = useState("");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedUrl, setSavedUrl] = useState<string | null>(null);
+
   const previewUrl = useMemo(() => {
     if (!imageFile) return null;
     return URL.createObjectURL(imageFile);
@@ -173,6 +181,12 @@ export default function DetailPage() {
 
   const query = buildQuery({ kind: strategy, chips, vision });
 
+  useEffect(() => {
+    // Keep bestQuery defaulted to the current auto query unless user edits it.
+    if (!bestQuery) setBestQuery(query);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
+
   async function onDownloadImage(kind: "cropped" | "original") {
     if (!imageFile) {
       alert(lang === "zh" ? "请先上传图片。" : "Please upload an image first.");
@@ -190,6 +204,37 @@ export default function DetailPage() {
       await downloadFile(out);
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function onSaveToNotion() {
+    setSavedUrl(null);
+    setSaving(true);
+    try {
+      const res = await fetch("/api/notion/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          databaseId: NOTION_DATABASE_ID,
+          name: `sample ${new Date().toISOString().slice(0, 19)}`,
+          platform: platformTag,
+          queryMode: strategy,
+          autoQuery: query,
+          bestQuery: bestQuery || query,
+          // imageUrl will be wired to Vercel Blob later
+          imageUrl: "",
+          visionJson: vision ? JSON.stringify(vision).slice(0, 2000) : "",
+          notes,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || "Save failed");
+      setSavedUrl(json?.url || null);
+    } catch (e: any) {
+      alert((lang === "zh" ? "保存失败：" : "Save failed: ") + (e?.message || ""));
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -294,6 +339,76 @@ export default function DetailPage() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* Save to Notion (labeling) */}
+      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "保存到 Notion（标注）" : "Save to Notion (label)"}</div>
+
+        <div className="grid gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              value={platformTag}
+              onChange={(e) => setPlatformTag(e.target.value)}
+            >
+              <option>eBay UK</option>
+              <option>Vinted</option>
+              <option>Xianyu</option>
+            </select>
+
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value as any)}
+            >
+              <option value="broad">broad</option>
+              <option value="exact">exact</option>
+              <option value="strict">strict</option>
+              <option value="chips">chips</option>
+            </select>
+          </div>
+
+          <div className="text-xs font-semibold text-zinc-500">
+            {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {query || "—"}
+          </div>
+
+          <input
+            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+            value={bestQuery}
+            onChange={(e) => setBestQuery(e.target.value)}
+            placeholder={lang === "zh" ? "Best Query（你确认最像的一条）" : "Best Query (your best)"}
+          />
+
+          <textarea
+            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder={lang === "zh" ? "备注：为什么这条 query 更像？" : "Notes: why is this better?"}
+          />
+
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
+              onClick={onSaveToNotion}
+              disabled={saving}
+              type="button"
+            >
+              {saving ? (lang === "zh" ? "保存中…" : "Saving…") : lang === "zh" ? "保存" : "Save"}
+            </button>
+
+            {savedUrl && (
+              <a className="text-sm font-semibold text-emerald-700 underline" href={savedUrl} target="_blank" rel="noreferrer">
+                {lang === "zh" ? "已保存，打开 Notion" : "Saved, open Notion"}
+              </a>
+            )}
+          </div>
+
+          <div className="text-xs font-semibold text-zinc-500">
+            {lang === "zh" ? "提示：图片 URL 还未接入存储，当前仅保存 query/识别结果。" : "Note: image URL upload is not wired yet; saving queries/vision only."}
+          </div>
+        </div>
       </section>
 
       {/* Actions */}
