@@ -21,7 +21,7 @@ export default function MainPage() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col items-stretch px-5 py-10">
       {/* Brand */}
-      <div className="mb-10 text-center">
+      <div className="mb-10 flex w-full justify-center">
         <div className="font-display text-3xl text-brand-900">{t.title}</div>
       </div>
 
@@ -73,7 +73,7 @@ export default function MainPage() {
 
       {/* Language switch */}
       <button
-        className="mt-auto pt-10 text-center text-sm font-semibold text-brand-900 underline underline-offset-4"
+        className="mt-auto pt-10 text-center font-display text-sm font-semibold text-brand-900 underline decoration-brand-900 underline-offset-4"
         onClick={() => setLang(lang === "en" ? "zh" : "en")}
       >
         {t.switchTo}
