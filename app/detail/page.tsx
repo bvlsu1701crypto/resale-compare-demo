@@ -35,7 +35,7 @@ export default function DetailPage() {
   const text = useSearchStore((s) => s.text);
   const imageFile = useSearchStore((s) => s.imageFile);
 
-  const langSwitchLabel = lang === "en" ? "切换中文" : "Change to English";
+  const langSwitchLabel = lang === "en" ? "切换简体中文" : "Change to English";
   const loading = useSearchStore((s) => s.loading);
   const err = useSearchStore((s) => s.err);
   const chips = useSearchStore((s) => s.chips);

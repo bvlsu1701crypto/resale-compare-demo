@@ -6,7 +6,7 @@ export const TEXT: Record<Lang, Record<string, string>> = {
     placeholder: "Describe the bag (optional), e.g. coach bag with C buckle",
     upload: "Upload image",
     search: "Search",
-    switchTo: "切换中文",
+    switchTo: "切换简体中文",
   },
   zh: {
     title: "PreloveFinder",
