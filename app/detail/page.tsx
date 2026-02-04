@@ -27,10 +27,10 @@ async function copyToClipboard(s: string) {
   }
 }
 
-type ShareCrop = "none" | "square";
+type CropMode = "original" | "center" | "auto";
 
-async function prepareShareImage(args: { file: File; crop: ShareCrop }): Promise<File> {
-  const { file, crop } = args;
+async function prepareCroppedImage(args: { file: File; mode: CropMode }): Promise<File> {
+  const { file, mode } = args;
 
   // Safari compatibility
   if (typeof (globalThis as any).createImageBitmap !== "function") return file;
@@ -47,10 +47,18 @@ async function prepareShareImage(args: { file: File; crop: ShareCrop }): Promise
   let sw = bmp.width;
   let sh = bmp.height;
 
-  if (crop === "square") {
+  if (mode === "center" || mode === "auto") {
     const size = Math.min(bmp.width, bmp.height);
     sx = Math.floor((bmp.width - size) / 2);
-    sy = Math.floor((bmp.height - size) / 2);
+
+    // auto: for tall photos, bias crop slightly upward (bags/shoes often sit above center)
+    const isTall = bmp.height > bmp.width * 1.2;
+    const bias = mode === "auto" && isTall ? 0.18 : 0.5;
+    sy = Math.floor((bmp.height - size) * bias);
+
+    // clamp
+    sy = Math.max(0, Math.min(sy, bmp.height - size));
+
     sw = size;
     sh = size;
   }
@@ -74,7 +82,8 @@ async function prepareShareImage(args: { file: File; crop: ShareCrop }): Promise
   );
   if (!blob) return file;
 
-  const name = file.name.replace(/\.[^.]+$/, "") + (crop === "square" ? "-square" : "") + ".jpg";
+  const suffix = mode === "original" ? "" : mode === "center" ? "-center" : "-auto";
+  const name = file.name.replace(/\.[^.]+$/, "") + suffix + ".jpg";
   return new File([blob], name, { type: "image/jpeg", lastModified: Date.now() });
 }
 
@@ -111,8 +120,8 @@ export default function DetailPage() {
   const generate = useSearchStore((s) => s.generate);
 
   const [copied, setCopied] = useState(false);
-  const [shareCrop, setShareCrop] = useState<ShareCrop>("square");
-  const [sharing, setSharing] = useState(false);
+  const [cropMode, setCropMode] = useState<CropMode>("auto");
+  const [downloading, setDownloading] = useState(false);
 
   const previewUrl = useMemo(() => {
     if (!imageFile) return null;
@@ -141,54 +150,22 @@ export default function DetailPage() {
 
   const query = buildQuery({ kind: strategy, chips, vision });
 
-  const canNativeShare = typeof navigator !== "undefined" && typeof (navigator as any).share === "function";
-
-  async function onShareImageToApp() {
+  async function onDownloadImage(kind: "cropped" | "original") {
     if (!imageFile) {
       alert(lang === "zh" ? "请先上传图片。" : "Please upload an image first.");
       return;
     }
 
-    setSharing(true);
+    setDownloading(true);
     try {
-      const shareFile = await prepareShareImage({ file: imageFile, crop: shareCrop });
+      const out =
+        kind === "original"
+          ? await prepareCroppedImage({ file: imageFile, mode: "original" })
+          : await prepareCroppedImage({ file: imageFile, mode: cropMode });
 
-      // Prefer system share sheet (Safari iOS)
-      if (canNativeShare && typeof (navigator as any).canShare === "function") {
-        const ok = (navigator as any).canShare({ files: [shareFile] });
-        if (ok) {
-          await (navigator as any).share({
-            title: "PreloveFinder",
-            text: query ? `query: ${query}` : undefined,
-            files: [shareFile],
-          });
-          return;
-        }
-      }
-
-      if (canNativeShare) {
-        // Some Safari builds don't support canShare; try anyway.
-        try {
-          await (navigator as any).share({
-            title: "PreloveFinder",
-            text: query ? `query: ${query}` : undefined,
-            files: [shareFile],
-          });
-          return;
-        } catch {
-          // fall through
-        }
-      }
-
-      // Fallback: download image, user opens app and uploads
-      await downloadFile(shareFile);
-      alert(
-        lang === "zh"
-          ? "已下载图片。请打开对应平台 App → 识图/相机 → 选择刚保存的图片。"
-          : "Image downloaded. Open the platform app → visual search/camera → pick the saved image."
-      );
+      await downloadFile(out);
     } finally {
-      setSharing(false);
+      setDownloading(false);
     }
   }
 
@@ -218,13 +195,13 @@ export default function DetailPage() {
         )}
       </header>
 
-      {/* Image share (visual search entry) */}
+      {/* Image helper (crop/compress + download for app visual search) */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "识图入口" : "Visual search entry"}</div>
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "图片辅助搜图" : "Image helper"}</div>
 
         {!imageFile && (
           <div className="text-sm font-semibold text-zinc-500">
-            {lang === "zh" ? "上传图片后，可通过系统分享直接在 App 内识图。" : "Upload an image to share it into apps for visual search."}
+            {lang === "zh" ? "上传图片后可裁剪/压缩并下载，用于平台 App 内的识图搜索。" : "Upload an image to crop/compress and download for in-app visual search."}
           </div>
         )}
 
@@ -238,15 +215,22 @@ export default function DetailPage() {
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${shareCrop === "square" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-                  onClick={() => setShareCrop("square")}
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "auto" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("auto")}
                   type="button"
                 >
-                  {lang === "zh" ? "居中裁剪" : "Center crop"}
+                  {lang === "zh" ? "智能裁剪" : "Smart crop"}
                 </button>
                 <button
-                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${shareCrop === "none" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-                  onClick={() => setShareCrop("none")}
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "center" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("center")}
+                  type="button"
+                >
+                  {lang === "zh" ? "居中裁剪" : "Center"}
+                </button>
+                <button
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "original" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("original")}
                   type="button"
                 >
                   {lang === "zh" ? "原图" : "Original"}
@@ -254,18 +238,27 @@ export default function DetailPage() {
 
                 <button
                   className="ml-auto inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60"
-                  onClick={onShareImageToApp}
-                  disabled={sharing}
+                  onClick={() => onDownloadImage("cropped")}
+                  disabled={downloading}
                   type="button"
                 >
-                  {sharing ? (lang === "zh" ? "处理中…" : "Preparing…") : lang === "zh" ? "分享图片到 App" : "Share to app"}
+                  {downloading ? (lang === "zh" ? "处理中…" : "Preparing…") : lang === "zh" ? "下载裁剪图" : "Download crop"}
+                </button>
+
+                <button
+                  className="inline-flex items-center justify-center rounded-xl border border-emerald-600 bg-white px-3 py-2 text-xs font-extrabold text-emerald-700 disabled:opacity-60"
+                  onClick={() => onDownloadImage("original")}
+                  disabled={downloading}
+                  type="button"
+                >
+                  {lang === "zh" ? "下载原图" : "Download original"}
                 </button>
               </div>
 
               <div className="mt-2 text-xs font-semibold text-zinc-500">
                 {lang === "zh"
-                  ? "提示：浏览器无法自动上传图片到平台。分享后在平台 App 内使用识图/相机选择同一张图片。"
-                  : "Note: browsers can't auto-upload files to other sites. After sharing, use visual search/camera inside the app."}
+                  ? "如果文字搜索结果不准确，可下载这张图片，在平台 App 内使用“识图/相机”进行图片搜索。"
+                  : "If text results are inaccurate, download the image and use visual search/camera inside the marketplace app."}
               </div>
             </div>
           </div>
@@ -420,15 +413,15 @@ export default function DetailPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  className="rounded-xl border border-brand-500 bg-white px-3 py-2 text-xs font-extrabold text-zinc-900 disabled:opacity-60"
-                  title={lang === "zh" ? "通过系统分享把图片发送到平台 App 进行识图" : "Share the image into apps for visual search"}
-                  onClick={onShareImageToApp}
-                  disabled={!imageFile || sharing}
-                  type="button"
-                >
-                  {lang === "zh" ? "识图" : "Image"}
-                </button>
+                <div className="hidden sm:block rounded-full border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] font-extrabold text-zinc-600">
+                  {p.key === "ebay" || p.key === "vinted" || p.key === "xianyu"
+                    ? lang === "zh"
+                      ? "支持图片搜索"
+                      : "Image search supported"
+                    : lang === "zh"
+                      ? "仅文字"
+                      : "Text only"}
+                </div>
 
                 <a
                   href={url}
