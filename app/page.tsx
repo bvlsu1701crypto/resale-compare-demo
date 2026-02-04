@@ -20,60 +20,63 @@ export default function MainPage() {
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-[420px] flex-col items-stretch px-5 py-10">
-      {/* Brand */}
-      <div className="mb-10 flex w-full justify-center">
-        <div className="font-display text-3xl text-brand-900">{t.title}</div>
-      </div>
+      {/* Center block (matches the mobile UI comp) */}
+      <div className="flex flex-1 flex-col justify-center">
+        {/* Brand */}
+        <div className="flex w-full justify-center pb-10">
+          <div className="font-display text-3xl text-brand-900">{t.title}</div>
+        </div>
 
-      {/* Upload */}
-      <button
-        className="rounded-2xl bg-brand-500 px-4 py-4 text-center text-sm font-extrabold text-white shadow-sm"
-        onClick={() => fileRef.current?.click()}
-      >
-        {t.upload}
-      </button>
+        {/* Upload */}
+        <button
+          className="rounded-2xl bg-brand-500 px-4 py-4 text-center text-sm font-extrabold text-white shadow-sm"
+          onClick={() => fileRef.current?.click()}
+        >
+          {t.upload}
+        </button>
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files?.[0] ?? null;
-          if (!f) return;
-
-          // Clear previous outputs so Detail can auto-generate.
-          resetOutputs();
-          setImageFile(f);
-          router.push("/detail");
-        }}
-      />
-
-      {/* Text input */}
-      <div className="mt-4">
         <input
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={t.placeholder}
-          className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none"
-        />
-      </div>
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0] ?? null;
+            if (!f) return;
 
-      {/* Search button (text-only flow) */}
-      <button
-        className="mt-3 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-sm font-extrabold text-brand-900"
-        onClick={() => {
-          resetOutputs();
-          setImageFile(null);
-          router.push("/detail");
-        }}
-      >
-        {t.search}
-      </button>
+            // Clear previous outputs so Detail can auto-generate.
+            resetOutputs();
+            setImageFile(f);
+            router.push("/detail");
+          }}
+        />
+
+        {/* Text input */}
+        <div className="mt-4">
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            placeholder={t.placeholder}
+            className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-900 placeholder:text-zinc-400 focus:border-brand-500 focus:outline-none"
+          />
+        </div>
+
+        {/* Search button (text-only flow) */}
+        <button
+          className="mt-3 rounded-2xl border border-brand-200 bg-white px-4 py-3 text-sm font-extrabold text-brand-900"
+          onClick={() => {
+            resetOutputs();
+            setImageFile(null);
+            router.push("/detail");
+          }}
+        >
+          {t.search}
+        </button>
+      </div>
 
       {/* Language switch */}
       <button
-        className="mt-auto pt-10 text-center font-display text-sm font-semibold text-brand-900 underline decoration-brand-900 underline-offset-4"
+        className="pt-10 text-center font-display text-sm font-semibold text-brand-900 underline decoration-brand-900 underline-offset-4"
         onClick={() => setLang(lang === "en" ? "zh" : "en")}
       >
         {t.switchTo}
