@@ -223,6 +223,11 @@ export default function DetailPage() {
   async function onSaveToNotion() {
     setSavedUrl(null);
     setSaving(true);
+
+    // Avoid "stuck" UI if the request hangs (e.g. network/Notion hiccup)
+    const ctrl = new AbortController();
+    const timeout = window.setTimeout(() => ctrl.abort(), 12000);
+
     try {
       const res = await fetch("/api/notion/log", {
         method: "POST",
@@ -232,21 +237,24 @@ export default function DetailPage() {
           name: `sample ${new Date().toISOString().slice(0, 19)}`,
           platform: platformTag,
           queryMode: strategy,
-          autoQuery: query,
+          autoQuery,
           bestQuery: bestQuery || query,
           // imageUrl will be wired to Vercel Blob later
           imageUrl: "",
           visionJson: vision ? JSON.stringify(vision).slice(0, 2000) : "",
           notes,
         }),
+        signal: ctrl.signal,
       });
 
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || "Save failed");
-      setSavedUrl(json?.url || null);
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error((json as any)?.error || "Save failed");
+      setSavedUrl((json as any)?.url || null);
     } catch (e: any) {
-      alert((lang === "zh" ? "保存失败：" : "Save failed: ") + (e?.message || ""));
+      const msg = e?.name === "AbortError" ? (lang === "zh" ? "请求超时，请重试" : "Request timed out, please retry") : e?.message;
+      alert((lang === "zh" ? "保存失败：" : "Save failed: ") + (msg || ""));
     } finally {
+      window.clearTimeout(timeout);
       setSaving(false);
     }
   }
