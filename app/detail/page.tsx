@@ -158,6 +158,10 @@ export default function DetailPage() {
   const [saving, setSaving] = useState(false);
   const [savedUrl, setSavedUrl] = useState<string | null>(null);
 
+  // Suggested query from feedback (server-side)
+  const [suggestedQuery, setSuggestedQuery] = useState<string>("");
+  const [suggestedMeta, setSuggestedMeta] = useState<string>("");
+
   const previewUrl = useMemo(() => {
     if (!imageFile) return null;
     return URL.createObjectURL(imageFile);
@@ -191,6 +195,47 @@ export default function DetailPage() {
     if (!bestQuery) setBestQuery(query);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
+
+  useEffect(() => {
+    // Pull suggested query from Notion feedback history.
+    // We only do this for eBay UK initially.
+    const p = platformTag || "eBay UK";
+    if (!autoQuery || p !== "eBay UK") {
+      setSuggestedQuery("");
+      setSuggestedMeta("");
+      return;
+    }
+
+    let cancelled = false;
+    const t = window.setTimeout(async () => {
+      try {
+        const url = new URL("/api/feedback/suggest", window.location.origin);
+        url.searchParams.set("platform", p);
+        url.searchParams.set("autoQuery", autoQuery);
+
+        const res = await fetch(url.toString(), { cache: "no-store" });
+        const json = await res.json();
+        if (cancelled) return;
+
+        if (res.ok && json?.suggestedQuery && typeof json.suggestedQuery === "string") {
+          setSuggestedQuery(json.suggestedQuery);
+          setSuggestedMeta(json?.reason ? `${json.reason}${json.score ? ` (score ${Number(json.score).toFixed(2)})` : ""}` : "");
+        } else {
+          setSuggestedQuery("");
+          setSuggestedMeta("");
+        }
+      } catch {
+        if (cancelled) return;
+        setSuggestedQuery("");
+        setSuggestedMeta("");
+      }
+    }, 500);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(t);
+    };
+  }, [autoQuery, platformTag]);
 
   useEffect(() => {
     // If user hasn't manually edited query, keep override synced.
@@ -362,76 +407,6 @@ export default function DetailPage() {
         )}
       </section>
 
-      {/* Save to Notion (labeling) */}
-      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "保存到 Notion（标注）" : "Save to Notion (label)"}</div>
-
-        <div className="grid gap-2">
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
-              value={platformTag}
-              onChange={(e) => setPlatformTag(e.target.value)}
-            >
-              <option>eBay UK</option>
-              <option>Vinted</option>
-              <option>Xianyu</option>
-            </select>
-
-            <select
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
-              value={strategy}
-              onChange={(e) => setStrategy(e.target.value as any)}
-            >
-              <option value="broad">broad</option>
-              <option value="exact">exact</option>
-              <option value="strict">strict</option>
-              <option value="chips">chips</option>
-            </select>
-          </div>
-
-          <div className="text-xs font-semibold text-zinc-500">
-            {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {autoQuery || "—"}
-          </div>
-
-          <input
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
-            value={bestQuery}
-            onChange={(e) => setBestQuery(e.target.value)}
-            placeholder={lang === "zh" ? "Best Query（你确认最像的一条）" : "Best Query (your best)"}
-          />
-
-          <textarea
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={2}
-            placeholder={lang === "zh" ? "备注：为什么这条 query 更像？" : "Notes: why is this better?"}
-          />
-
-          <div className="flex items-center gap-2">
-            <button
-              className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
-              onClick={onSaveToNotion}
-              disabled={saving}
-              type="button"
-            >
-              {saving ? (lang === "zh" ? "保存中…" : "Saving…") : lang === "zh" ? "保存" : "Save"}
-            </button>
-
-            {savedUrl && (
-              <a className="text-sm font-semibold text-emerald-700 underline" href={savedUrl} target="_blank" rel="noreferrer">
-                {lang === "zh" ? "已保存，打开 Notion" : "Saved, open Notion"}
-              </a>
-            )}
-          </div>
-
-          <div className="text-xs font-semibold text-zinc-500">
-            {lang === "zh" ? "提示：图片 URL 还未接入存储，当前仅保存 query/识别结果。" : "Note: image URL upload is not wired yet; saving queries/vision only."}
-          </div>
-        </div>
-      </section>
-
       {/* Actions */}
       <div className="mb-4 flex flex-wrap gap-2">
         <button
@@ -505,6 +480,25 @@ export default function DetailPage() {
       {/* Query */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词" : "Query"}</div>
+
+        {suggestedQuery && suggestedQuery !== autoQuery && (
+          <div className="mb-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm">
+            <div className="text-xs font-extrabold text-emerald-700">
+              {lang === "zh" ? "建议搜索词（来自历史反馈）" : "Suggested (from feedback)"}
+              {suggestedMeta ? ` · ${suggestedMeta}` : ""}
+            </div>
+            <div className="mt-1 font-semibold text-zinc-900">{suggestedQuery}</div>
+            <div className="mt-2">
+              <button
+                className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white"
+                type="button"
+                onClick={() => setQueryOverride(suggestedQuery)}
+              >
+                {lang === "zh" ? "使用这条" : "Use this"}
+              </button>
+            </div>
+          </div>
+        )}
         {loading && (
           <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-zinc-600">
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-zinc-300 border-t-brand-500" />
@@ -622,6 +616,77 @@ export default function DetailPage() {
           );
         })}
       </section>
+
+      {/* Save to Notion (labeling) */}
+      <section className="mt-6 mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "保存到 Notion（标注）" : "Save to Notion (label)"}</div>
+
+        <div className="grid gap-2">
+          <div className="grid grid-cols-2 gap-2">
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              value={platformTag}
+              onChange={(e) => setPlatformTag(e.target.value)}
+            >
+              <option>eBay UK</option>
+              <option>Vinted</option>
+              <option>Xianyu</option>
+            </select>
+
+            <select
+              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              value={strategy}
+              onChange={(e) => setStrategy(e.target.value as any)}
+            >
+              <option value="broad">broad</option>
+              <option value="exact">exact</option>
+              <option value="strict">strict</option>
+              <option value="chips">chips</option>
+            </select>
+          </div>
+
+          <div className="text-xs font-semibold text-zinc-500">
+            {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {autoQuery || "—"}
+          </div>
+
+          <input
+            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+            value={bestQuery}
+            onChange={(e) => setBestQuery(e.target.value)}
+            placeholder={lang === "zh" ? "Best Query（你确认最像的一条）" : "Best Query (your best)"}
+          />
+
+          <textarea
+            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder={lang === "zh" ? "备注：为什么这条 query 更像？" : "Notes: why is this better?"}
+          />
+
+          <div className="flex items-center gap-2">
+            <button
+              className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
+              onClick={onSaveToNotion}
+              disabled={saving}
+              type="button"
+            >
+              {saving ? (lang === "zh" ? "保存中…" : "Saving…") : lang === "zh" ? "保存" : "Save"}
+            </button>
+
+            {savedUrl && (
+              <a className="text-sm font-semibold text-emerald-700 underline" href={savedUrl} target="_blank" rel="noreferrer">
+                {lang === "zh" ? "已保存，打开 Notion" : "Saved, open Notion"}
+              </a>
+            )}
+          </div>
+
+          <div className="text-xs font-semibold text-zinc-500">
+            {lang === "zh" ? "提示：图片 URL 还未接入存储，当前仅保存 query/识别结果。" : "Note: image URL upload is not wired yet; saving queries/vision only."}
+          </div>
+        </div>
+      </section>
+
 
       <footer className="mt-8 text-center font-display text-xl text-brand-900">PreloveFinder</footer>
     </main>
