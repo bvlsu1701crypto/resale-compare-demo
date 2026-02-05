@@ -337,146 +337,6 @@ export default function DetailPage() {
         )}
       </header>
 
-      {/* Image helper (crop/compress + download for app visual search) */}
-      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "图片辅助搜图" : "Image helper"}</div>
-
-        {!imageFile && (
-          <div className="text-sm font-semibold text-zinc-500">
-            {lang === "zh" ? "上传图片后可裁剪/压缩并下载，用于平台 App 内的识图搜索。" : "Upload an image to crop/compress and download for in-app visual search."}
-          </div>
-        )}
-
-        {imageFile && (
-          <div className="flex items-start gap-3">
-            {previewUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewUrl} alt="preview" className="h-16 w-16 rounded-xl border border-zinc-200 object-cover" />
-            )}
-
-            <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "auto" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-                  onClick={() => setCropMode("auto")}
-                  type="button"
-                >
-                  {lang === "zh" ? "智能裁剪" : "Smart crop"}
-                </button>
-                <button
-                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "center" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-                  onClick={() => setCropMode("center")}
-                  type="button"
-                >
-                  {lang === "zh" ? "居中裁剪" : "Center"}
-                </button>
-                <button
-                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "original" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-                  onClick={() => setCropMode("original")}
-                  type="button"
-                >
-                  {lang === "zh" ? "原图" : "Original"}
-                </button>
-
-                <button
-                  className="ml-auto inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60"
-                  onClick={() => onDownloadImage("cropped")}
-                  disabled={downloading}
-                  type="button"
-                >
-                  {downloading ? (lang === "zh" ? "处理中…" : "Preparing…") : lang === "zh" ? "下载裁剪图" : "Download crop"}
-                </button>
-
-                <button
-                  className="inline-flex items-center justify-center rounded-xl border border-emerald-600 bg-white px-3 py-2 text-xs font-extrabold text-emerald-700 disabled:opacity-60"
-                  onClick={() => onDownloadImage("original")}
-                  disabled={downloading}
-                  type="button"
-                >
-                  {lang === "zh" ? "下载原图" : "Download original"}
-                </button>
-              </div>
-
-              <div className="mt-2 text-xs font-semibold text-zinc-500">
-                {lang === "zh"
-                  ? "如果文字搜索结果不准确，可下载这张图片，在平台 App 内使用“识图/相机”进行图片搜索。"
-                  : "If text results are inaccurate, download the image and use visual search/camera inside the marketplace app."}
-              </div>
-            </div>
-          </div>
-        )}
-      </section>
-
-      {/* Actions */}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <button
-          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
-          onClick={async () => {
-            await copyToClipboard(query);
-            setCopied(true);
-            setTimeout(() => setCopied(false), 1200);
-          }}
-        >
-          {lang === "zh" ? "复制关键词" : "Copy key word"}
-        </button>
-
-        <button
-          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
-          onClick={() => {
-            // reserved for future: editing keywords/query
-            // Keeping behavior minimal to avoid diverging from the prototype.
-            alert(lang === "zh" ? "暂未实现编辑功能（仅 UI 占位）。" : "Edit is not implemented yet (UI only). ");
-          }}
-        >
-          {lang === "zh" ? "编辑" : "Edit"}
-        </button>
-
-        <button
-          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
-          onClick={() => {
-            // You said keywords are always English; keep button for parity, no-op for now.
-            alert(lang === "zh" ? "为方便跨平台搜索，关键词默认使用英文。" : "Keywords are already English in this prototype.");
-          }}
-        >
-          {lang === "zh" ? "翻译为英文" : "Translate key word"}
-        </button>
-
-        {copied && <span className="self-center text-xs font-semibold text-emerald-600">Copied</span>}
-      </div>
-
-      {/* Query mode */}
-      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词模式" : "Query mode"}</div>
-        <div className="grid gap-2">
-          <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "broad" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-            onClick={() => setStrategy("broad")}
-          >
-            {lang === "zh" ? "宽泛（推荐）" : "Broad (best default)"}
-          </button>
-          <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "exact" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-            onClick={() => setStrategy("exact")}
-          >
-            {lang === "zh" ? "精确（更精确）" : "Exact (if confident)"}
-          </button>
-          <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "strict" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
-            onClick={() => setStrategy("strict")}
-          >
-            {lang === "zh" ? "严格（仅正品）" : "Strict (authentic only)"}
-          </button>
-
-          {/* Keep prototype-only chips mode but de-emphasize it */}
-          <button
-            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "chips" ? "bg-brand-500 text-white" : "border border-brand-500/60 bg-white text-zinc-900"}`}
-            onClick={() => setStrategy("chips")}
-          >
-            {lang === "zh" ? "关键词选择（高级）" : "Chips (advanced)"}
-          </button>
-        </div>
-      </section>
-
       {/* Query */}
       <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
         <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词" : "Query"}</div>
@@ -548,6 +408,43 @@ export default function DetailPage() {
         )}
       </section>
 
+      {/* Actions */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        <button
+          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
+          onClick={async () => {
+            await copyToClipboard(query);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          }}
+        >
+          {lang === "zh" ? "复制关键词" : "Copy key word"}
+        </button>
+
+        <button
+          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
+          onClick={() => {
+            // reserved for future: editing keywords/query
+            // Keeping behavior minimal to avoid diverging from the prototype.
+            alert(lang === "zh" ? "暂未实现编辑功能（仅 UI 占位）。" : "Edit is not implemented yet (UI only). ");
+          }}
+        >
+          {lang === "zh" ? "编辑" : "Edit"}
+        </button>
+
+        <button
+          className="rounded-lg border border-brand-200 bg-white px-3 py-2 text-sm font-semibold text-brand-900"
+          onClick={() => {
+            // You said keywords are always English; keep button for parity, no-op for now.
+            alert(lang === "zh" ? "为方便跨平台搜索，关键词默认使用英文。" : "Keywords are already English in this prototype.");
+          }}
+        >
+          {lang === "zh" ? "翻译为英文" : "Translate key word"}
+        </button>
+
+        {copied && <span className="self-center text-xs font-semibold text-emerald-600">Copied</span>}
+      </div>
+
       {/* Keywords (chips) */}
       {chips.length > 0 && (
         <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
@@ -573,6 +470,109 @@ export default function DetailPage() {
           </div>
         </section>
       )}
+
+      {/* Query mode */}
+      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词模式" : "Query mode"}</div>
+        <div className="grid gap-2">
+          <button
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "broad" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+            onClick={() => setStrategy("broad")}
+          >
+            {lang === "zh" ? "宽泛（推荐）" : "Broad (best default)"}
+          </button>
+          <button
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "exact" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+            onClick={() => setStrategy("exact")}
+          >
+            {lang === "zh" ? "精确（更精确）" : "Exact (if confident)"}
+          </button>
+          <button
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "strict" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+            onClick={() => setStrategy("strict")}
+          >
+            {lang === "zh" ? "严格（仅正品）" : "Strict (authentic only)"}
+          </button>
+
+          {/* Keep prototype-only chips mode but de-emphasize it */}
+          <button
+            className={`rounded-xl px-3 py-3 text-sm font-extrabold ${strategy === "chips" ? "bg-brand-500 text-white" : "border border-brand-500/60 bg-white text-zinc-900"}`}
+            onClick={() => setStrategy("chips")}
+          >
+            {lang === "zh" ? "关键词选择（高级）" : "Chips (advanced)"}
+          </button>
+        </div>
+      </section>
+
+      {/* Image helper (crop/compress + download for app visual search) */}
+      <section className="mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "图片辅助搜图" : "Image helper"}</div>
+
+        {!imageFile && (
+          <div className="text-sm font-semibold text-zinc-500">
+            {lang === "zh" ? "上传图片后可裁剪/压缩并下载，用于平台 App 内的识图搜索。" : "Upload an image to crop/compress and download for in-app visual search."}
+          </div>
+        )}
+
+        {imageFile && (
+          <div className="flex items-start gap-3">
+            {previewUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={previewUrl} alt="preview" className="h-16 w-16 rounded-xl border border-zinc-200 object-cover" />
+            )}
+
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "auto" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("auto")}
+                  type="button"
+                >
+                  {lang === "zh" ? "智能裁剪" : "Smart crop"}
+                </button>
+                <button
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "center" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("center")}
+                  type="button"
+                >
+                  {lang === "zh" ? "居中裁剪" : "Center"}
+                </button>
+                <button
+                  className={`rounded-xl px-3 py-2 text-xs font-extrabold ${cropMode === "original" ? "bg-brand-500 text-white" : "border border-brand-500 bg-white text-zinc-900"}`}
+                  onClick={() => setCropMode("original")}
+                  type="button"
+                >
+                  {lang === "zh" ? "原图" : "Original"}
+                </button>
+
+                <button
+                  className="ml-auto inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-xs font-extrabold text-white disabled:opacity-60"
+                  onClick={() => onDownloadImage("cropped")}
+                  disabled={downloading}
+                  type="button"
+                >
+                  {downloading ? (lang === "zh" ? "处理中…" : "Preparing…") : lang === "zh" ? "下载裁剪图" : "Download crop"}
+                </button>
+
+                <button
+                  className="inline-flex items-center justify-center rounded-xl border border-emerald-600 bg-white px-3 py-2 text-xs font-extrabold text-emerald-700 disabled:opacity-60"
+                  onClick={() => onDownloadImage("original")}
+                  disabled={downloading}
+                  type="button"
+                >
+                  {lang === "zh" ? "下载原图" : "Download original"}
+                </button>
+              </div>
+
+              <div className="mt-2 text-xs font-semibold text-zinc-500">
+                {lang === "zh"
+                  ? "如果文字搜索结果不准确，可下载这张图片，在平台 App 内使用“识图/相机”进行图片搜索。"
+                  : "If text results are inaccurate, download the image and use visual search/camera inside the marketplace app."}
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Platforms */}
       <section className="grid gap-3">
