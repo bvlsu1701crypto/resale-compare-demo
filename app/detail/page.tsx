@@ -617,14 +617,14 @@ export default function DetailPage() {
         })}
       </section>
 
-      {/* Save to Notion (labeling) */}
-      <section className="mt-6 mb-5 rounded-2xl border border-zinc-200 bg-white p-4">
-        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "保存到 Notion（标注）" : "Save to Notion (label)"}</div>
+      {/* Query feedback */}
+      <section className="mt-6 mb-5 rounded-2xl border border-[#FF7100] bg-white p-4">
+        <div className="mb-2 text-sm font-semibold text-zinc-700">{lang === "zh" ? "关键词反馈" : "Query feedback"}</div>
 
         <div className="grid gap-2">
           <div className="grid grid-cols-2 gap-2">
             <select
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              className="w-full rounded-xl border border-[#FF7100] bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
               value={platformTag}
               onChange={(e) => setPlatformTag(e.target.value)}
             >
@@ -634,7 +634,7 @@ export default function DetailPage() {
             </select>
 
             <select
-              className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+              className="w-full rounded-xl border border-[#FF7100] bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
               value={strategy}
               onChange={(e) => setStrategy(e.target.value as any)}
             >
@@ -649,24 +649,25 @@ export default function DetailPage() {
             {lang === "zh" ? "Auto Query（自动）" : "Auto Query"}: {autoQuery || "—"}
           </div>
 
-          <input
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+          <textarea
+            className="w-full rounded-xl border border-[#FF7100] bg-white px-3 py-3 text-sm font-semibold text-zinc-900"
             value={bestQuery}
             onChange={(e) => setBestQuery(e.target.value)}
-            placeholder={lang === "zh" ? "Best Query（你确认最像的一条）" : "Best Query (your best)"}
+            rows={3}
+            placeholder={lang === "zh" ? "你认为正确的关键词" : "The right Query"}
           />
 
           <textarea
-            className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
+            className="w-full rounded-xl border border-[#FF7100] bg-white px-3 py-2 text-sm font-semibold text-zinc-900"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            rows={2}
+            rows={1}
             placeholder={lang === "zh" ? "备注：为什么这条 query 更像？" : "Notes: why is this better?"}
           />
 
           <div className="flex items-center gap-2">
             <button
-              className="rounded-xl bg-brand-500 px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
+              className="rounded-xl bg-[#FF7100] px-3 py-2 text-sm font-extrabold text-white disabled:opacity-60"
               onClick={onSaveToNotion}
               disabled={saving}
               type="button"
