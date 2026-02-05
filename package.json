@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "weekly:notion-training": "node scripts/weekly-notion-training.mjs"
   },
   "dependencies": {
     "next": "16.1.6",
