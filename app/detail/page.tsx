@@ -192,7 +192,7 @@ export default function DetailPage() {
 
   useEffect(() => {
     // Keep bestQuery defaulted to the current auto query unless user edits it.
-    if (!bestQuery) setBestQuery(query);
+    // keep empty by default; user fills in feedback
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
