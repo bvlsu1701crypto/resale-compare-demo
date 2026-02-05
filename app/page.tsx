@@ -24,7 +24,11 @@ export default function MainPage() {
       <div className="flex flex-1 flex-col justify-center">
         {/* Brand */}
         <div className="flex w-full justify-center pb-10">
-          <div className="font-display text-3xl text-brand-900">{t.title}</div>
+          <img
+            src="/prelovefinder-logo.png"
+            alt={t.title}
+            className="h-12 w-auto"
+          />
         </div>
 
         {/* Upload */}

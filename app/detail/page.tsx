@@ -688,7 +688,13 @@ export default function DetailPage() {
       </section>
 
 
-      <footer className="mt-8 text-center font-display text-xl text-brand-900">PreloveFinder</footer>
+      <footer className="mt-8 flex justify-center">
+        <img
+          src="/prelovefinder-logo.png"
+          alt="PreloveFinder"
+          className="h-8 w-auto"
+        />
+      </footer>
     </main>
   );
 }
