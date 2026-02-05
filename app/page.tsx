@@ -27,7 +27,7 @@ export default function MainPage() {
           <img
             src="/prelovefinder-logo.png"
             alt={t.title}
-            className="h-24 w-auto"
+            className="logo-img h-24 w-auto"
           />
         </div>
 

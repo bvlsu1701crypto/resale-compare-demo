@@ -693,7 +693,7 @@ export default function DetailPage() {
         <img
           src="/prelovefinder-logo.png"
           alt="PreloveFinder"
-          className="h-16 w-auto"
+          className="logo-img h-16 w-auto"
         />
       </footer>
     </main>
