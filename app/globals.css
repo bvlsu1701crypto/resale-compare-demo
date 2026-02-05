@@ -5,8 +5,8 @@
   --foreground: #171717;
 
   /* PreloveFinder theme (placeholder, align with Figma later) */
-  --pf-brand: #f28a00;
-  --pf-brand-900: #b45c00;
+  --pf-brand: #FF7100;
+  --pf-brand-900: #FF7100;
 }
 
 @theme inline {
