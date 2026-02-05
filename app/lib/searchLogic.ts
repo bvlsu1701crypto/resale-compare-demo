@@ -58,9 +58,63 @@ export function buildEbayQuery(query: string, chips: Chip[]) {
   return normalizeSpaces(tokens.join(" "));
 }
 
+function hasChinese(s: string) {
+  return /[\u4e00-\u9fff]/.test(s);
+}
+
+const XIAN_YU_DICT: Record<string, string> = {
+  bag: "包",
+  handbag: "手提包",
+  shoulder: "单肩",
+  crossbody: "斜挎",
+  cross-body: "斜挎",
+  tote: "托特",
+  backpack: "双肩包",
+  wallet: "钱包",
+  purse: "包",
+  shoes: "鞋",
+  sneaker: "运动鞋",
+  sneakers: "运动鞋",
+  boots: "靴子",
+  coat: "外套",
+  jacket: "夹克",
+  dress: "连衣裙",
+  skirt: "裙子",
+  pants: "裤子",
+  jeans: "牛仔裤",
+  leather: "皮",
+  canvas: "帆布",
+  nylon: "尼龙",
+  black: "黑色",
+  white: "白色",
+  brown: "棕色",
+  beige: "米色",
+  blue: "蓝色",
+  red: "红色",
+  green: "绿色",
+  pink: "粉色",
+  silver: "银色",
+  gold: "金色",
+  mini: "迷你",
+  small: "小号",
+  medium: "中号",
+  large: "大号",
+  authentic: "正品",
+  genuine: "正品",
+};
+
+function translateToXianyuZh(query: string) {
+  const raw = normalizeSpaces(query);
+  if (!raw || hasChinese(raw)) return raw;
+
+  const tokens = raw.split(" ");
+  const translated = tokens.map((t) => XIAN_YU_DICT[t.toLowerCase()] || t);
+  return normalizeSpaces(translated.join(" "));
+}
+
 export function platformUrl(p: Platform, query: string, vision?: any, chips: Chip[] = []) {
   const finalQuery = p === "ebay" ? buildEbayQuery(query, chips) : query;
-  const q = encodeURIComponent(finalQuery);
+  const q = encodeURIComponent(p === "xianyu" ? translateToXianyuZh(finalQuery) : finalQuery);
 
   if (p === "ebay") {
     const base = `https://www.ebay.co.uk/sch/i.html?_nkw=${q}`;
