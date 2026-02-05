@@ -67,7 +67,7 @@ const XIAN_YU_DICT: Record<string, string> = {
   handbag: "手提包",
   shoulder: "单肩",
   crossbody: "斜挎",
-  cross-body: "斜挎",
+  "cross-body": "斜挎",
   tote: "托特",
   backpack: "双肩包",
   wallet: "钱包",
@@ -110,6 +110,11 @@ function translateToXianyuZh(query: string) {
   const tokens = raw.split(" ");
   const translated = tokens.map((t) => XIAN_YU_DICT[t.toLowerCase()] || t);
   return normalizeSpaces(translated.join(" "));
+}
+
+export function xianyuAppUrl(query: string) {
+  const zh = translateToXianyuZh(query);
+  return `/go/xianyu-image?q=${encodeURIComponent(zh)}`;
 }
 
 export function platformUrl(p: Platform, query: string, vision?: any, chips: Chip[] = []) {
